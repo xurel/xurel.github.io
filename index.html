@@ -1,21 +1,364 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Limited Offer - Claim Now</title>
+    <title>XUREL</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f4; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        h1 { color: #333; font-size: 24px; }
-        .btn { display: inline-block; background: #28a745; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 20px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        
+        @keyframes gradientBackground {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(120deg, #ff9a9e, #fad0c4, #fbc2eb, #a18cd1, #84fab0, #8fd3f4);
+            background-size: 300% 300%;
+            animation: gradientBackground 15s ease infinite;
+            display: flex; flex-direction: column; align-items: center;
+        }
+
+        /* --- TOOLBAR --- */
+        .toolbar {
+            width: 100%; background: rgba(255, 255, 255, 0.95);
+            padding: 8px 15px; display: flex; justify-content: space-between;
+            align-items: center; box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            position: sticky; top: 0; z-index: 1000;
+        }
+
+        .nav-links { display: flex; align-items: center; gap: 0; }
+        
+        .nav-item {
+            text-decoration: none; color: #555; 
+            display: flex; align-items: center; justify-content: center;
+            width: 45px; height: 45px; /* Box simetris */
+            border-radius: 12px; transition: 0.3s;
+        }
+        
+        .nav-item i { 
+            font-size: 1.3em; 
+            width: 25px; 
+            text-align: center; /* Ikon rata tengah */
+        }
+
+        .nav-item:hover, .nav-item.active { 
+            color: #ff6b6b; 
+            background: rgba(255, 107, 107, 0.1); 
+        }
+
+        /* Pemisah Jelas & Modern */
+        .nav-divider {
+            width: 1.5px;
+            height: 22px;
+            background: #e0e0e0;
+            margin: 0 4px;
+        }
+
+        .auth-container { position: relative; }
+        
+        .login-popup {
+            display: none; position: absolute; top: 50px; right: 0;
+            background: white; padding: 15px; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 240px; 
+            flex-direction: column; gap: 10px; z-index: 1001;
+        }
+        
+        .login-popup input { padding: 10px; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        
+        .remember-container {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.85em; color: #666; cursor: pointer;
+        }
+
+        /* --- ADMIN PANEL --- */
+        #admin-panel {
+            background: white; padding: 25px; border-radius: 15px; margin: 20px 0;
+            width: 90%; max-width: 600px; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .admin-input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9; }
+        .btn-add { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 10px; }
+
+        /* --- MENU CONTENT --- */
+        .container {
+            flex: 1; width: 95%; max-width: 700px; text-align: center;
+            background: rgba(255, 255, 255, 0.9); border-radius: 25px;
+            padding: 30px; margin: 30px 0; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .menu-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 25px; }
+        .menu-wrapper { 
+            position: relative; flex: 1 1 calc(50% - 18px); min-width: 160px; 
+            overflow: hidden; border-radius: 18px; transition: 0.3s;
+            display: flex; align-items: center;
+        }
+        
+        .menu-item {
+            display: flex; align-items: center; justify-content: center;
+            width: 100%; min-height: 75px; 
+            padding: 20px 55px;
+            border-radius: 18px; font-weight: 600;
+            text-decoration: none; color: white; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 1.1em; text-align: center;
+        }
+        .menu-item:hover { transform: translateY(-5px); }
+
+        .download-zone {
+            position: absolute; right: 0; top: 0; bottom: 0;
+            width: 50px; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.08); 
+            border-left: 1.5px solid rgba(255,255,255,0.4);
+            text-decoration: none; color: white; transition: 0.3s;
+            z-index: 5;
+        }
+        .download-zone:hover { background: rgba(255,255,255,0.2); }
+        .download-zone i { font-size: 1.5em; }
+
+        .edit-mode-container {
+            background: #fff; border-radius: 18px; padding: 15px; width: 100%;
+            display: flex; flex-direction: column; gap: 8px; border: 2px solid #ff6b6b;
+        }
+        .edit-mode-container input { padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.85em; width: 100%; }
+
+        .admin-controls { position: absolute; bottom: 5px; left: 8px; display: flex; gap: 4px; z-index: 10; }
+        .btn-ctrl {
+            background: rgba(0,0,0,0.2); color: white; border: none;
+            width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: 0.2s;
+            font-size: 10px;
+        }
+        .btn-ctrl:hover { background: white; color: #333; }
+        
+        footer { width: 100%; padding: 20px; background: rgba(255,255,255,0.8); text-align: center; color: #666; margin-top: auto; }
+        .badge-new { position: absolute; top: 6px; left: 6px; background: #ff4757; color: white; font-size: 8px; padding: 2px 7px; border-radius: 10px; font-weight: bold; z-index: 2; }
+
+        @media (max-width: 480px) { 
+            .nav-item span { display: none; } 
+            .menu-wrapper { flex: 1 1 100%; }
+            .nav-divider { margin: 0 2px; }
+        }
     </style>
 </head>
 <body>
-    <div class="card">
-        <h1>UNLOCKED: Get Your $100 Digital Gift Card Today!</h1>
-        <p>Special offer for our US community members. Verified and safe.</p>
-        <a href="LINK_ADSTERRA_ANDA" class="btn">CLAIM YOUR ACCESS NOW</a>
+
+    <nav class="toolbar">
+        <div class="nav-links">
+            <a href="#" class="nav-item active"><i class="fa-solid fa-house"></i> <span></span></a>
+            <div class="nav-divider"></div>
+            <a href="https://muzans.github.io/note.html" class="nav-item"><i class="fa-solid fa-sticky-note"></i> <span></span></a>
+            <div class="nav-divider"></div>
+            <a href="https://muzans.github.io/cloud.html" class="nav-item"><i class="fa-solid fa-cloud-upload"></i> <span></span></a>
+            <div class="nav-divider"></div>
+            <a href="https://muzans.github.io/linkshopee.html" class="nav-item"><i class="fa-solid fa-key"></i> <span></span></a>
+            <div class="nav-divider"></div>
+            <a href="https://muzans.github.io/privacy_policy.html" class="nav-item"><i class="fa-solid fa-user"></i> <span></span></a>
+        </div>
+        <div class="auth-container" id="auth-wrapper">
+            <button onclick="toggleLoginForm(event)" style="background:none; color:#555; border:1px solid #ddd; padding:8px 12px; border-radius:20px; cursor:pointer"><i class="fa-solid fa-user-lock"></i> Login</button>
+            <div class="login-popup" id="login-popup">
+                <input type="email" id="email" placeholder="Email Admin">
+                <input type="password" id="password" placeholder="Password">
+                <label class="remember-container">
+                    <input type="checkbox" id="rememberMe"> Ingat Saya
+                </label>
+                <button class="btn-add" onclick="login()">Masuk</button>
+            </div>
+            <button id="btn-logout" style="display:none; background: #ff4757; color:white; border:none; padding:8px 15px; border-radius:20px; cursor:pointer" onclick="logout()"><i class="fa-solid fa-power-off"></i> Logout</button>
+        </div>
+    </nav>
+
+    <div id="admin-panel">
+        <h3 style="margin-bottom:10px">Tambah Menu Baru</h3>
+        <input type="text" id="title" class="admin-input" placeholder="Judul Menu">
+        <input type="text" id="url" class="admin-input" placeholder="Link Halaman">
+        <input type="text" id="downloadUrl" class="admin-input" placeholder="Link Download (Opsional)">
+        <button class="btn-add" onclick="addMenu()">Terbitkan</button>
     </div>
+
+    <div class="container">
+        <div id="menu-container" class="menu-list"></div>
+    </div>
+
+<footer>
+    <p>&copy; 2026 Muzans Developer • Versi 24.1.26</p>
+    
+    <div style="margin-top: 15px; display: flex; justify-content: center;">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : 'f823a394a8f46f4dc5b3d3501f958e59',
+                'format' : 'iframe',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/f823a394a8f46f4dc5b3d3501f958e59/invoke.js"></script>
+    </div>
+</footer>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyD2gTavLSYU_zOC_BsIbJppvmrX_-RBDKw",
+            authDomain: "indexmuzans.firebaseapp.com",
+            databaseURL: "https://indexmuzans-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "indexmuzans",
+            storageBucket: "indexmuzans.firebasestorage.app",
+            messagingSenderId: "861969659258",
+            appId: "1:861969659258:web:fe6eed813347c7f20a92c3",
+            measurementId: "G-ZFF6LVVML8"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const auth = firebase.auth();
+
+        let isAdmin = false;
+        let editingKey = null;
+        let menuDataCache = {};
+
+        // Auto-fill jika Remember Me aktif
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedEmail = localStorage.getItem('muzans_email');
+            const savedPass = localStorage.getItem('muzans_pass');
+            if (savedEmail && savedPass) {
+                document.getElementById('email').value = savedEmail;
+                document.getElementById('password').value = savedPass;
+                document.getElementById('rememberMe').checked = true;
+            }
+        });
+
+        function toggleLoginForm(event) {
+            event.stopPropagation();
+            const popup = document.getElementById('login-popup');
+            popup.style.display = (popup.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        window.onclick = function(e) {
+            if (!document.getElementById('auth-wrapper').contains(e.target)) {
+                document.getElementById('login-popup').style.display = 'none';
+            }
+        };
+
+        function login() {
+            const email = document.getElementById('email').value;
+            const pass = document.getElementById('password').value;
+            const remember = document.getElementById('rememberMe').checked;
+
+            auth.signInWithEmailAndPassword(email, pass)
+            .then(() => {
+                if(remember) {
+                    localStorage.setItem('muzans_email', email);
+                    localStorage.setItem('muzans_pass', pass);
+                } else {
+                    localStorage.removeItem('muzans_email');
+                    localStorage.removeItem('muzans_pass');
+                }
+                document.getElementById('login-popup').style.display = 'none';
+            })
+            .catch(() => alert("Gagal"));
+        }
+
+        function logout() { editingKey = null; auth.signOut(); }
+
+        auth.onAuthStateChanged(user => {
+            isAdmin = !!user;
+            document.getElementById('admin-panel').style.display = isAdmin ? 'block' : 'none';
+            document.getElementById('btn-logout').style.display = isAdmin ? 'block' : 'none';
+            document.querySelector('[onclick="toggleLoginForm(event)"]').style.display = isAdmin ? 'none' : 'block';
+            renderMenus(); 
+        });
+
+        function formatUrl(input, isDl = false) {
+            if (!input) return isDl ? "" : "https://muzans.github.io/yasin.html";
+            if (input.startsWith('http')) return input;
+            return "https://muzans.github.io/" + (input.startsWith('/') ? input.substring(1) : input);
+        }
+
+        function addMenu() {
+            const title = document.getElementById('title').value;
+            if(title) {
+                db.ref('menus').push({
+                    title, 
+                    url: formatUrl(document.getElementById('url').value),
+                    downloadUrl: formatUrl(document.getElementById('downloadUrl').value, true),
+                    createdAt: new Date().toISOString().split('T')[0]
+                }).then(() => {
+                    document.getElementById('title').value = "";
+                    document.getElementById('url').value = "";
+                    document.getElementById('downloadUrl').value = "";
+                });
+            }
+        }
+
+        db.ref('menus').on('value', (snap) => {
+            menuDataCache = snap.val() || {};
+            renderMenus();
+        });
+
+        function renderMenus() {
+            const container = document.getElementById('menu-container');
+            container.innerHTML = "";
+            const colors = ['#ff6b6b', '#54a0ff', '#5f27cd', '#ff9f43', '#1dd1a1', '#00d2d3', '#f368e0', '#48dbfb', '#ee5253', '#10ac84'];
+            
+            let i = 0;
+            for (let key in menuDataCache) {
+                const data = menuDataCache[key];
+                const isNew = Math.ceil(Math.abs(new Date() - new Date(data.createdAt)) / (1000 * 60 * 60 * 24)) <= 90;
+                const wrapper = document.createElement('div');
+                wrapper.className = 'menu-wrapper';
+
+                if (isAdmin && editingKey === key) {
+                    wrapper.innerHTML = `
+                        <div class="edit-mode-container">
+                            <input type="text" id="ed-t-${key}" value="${data.title}">
+                            <input type="text" id="ed-u-${key}" value="${data.url}">
+                            <input type="text" id="ed-d-${key}" value="${data.downloadUrl || ''}">
+                            <div style="display:flex; gap:5px;">
+                                <button class="btn-add" style="margin:0; background:#2ecc71; padding:5px" onclick="saveEdit('${key}')">Simpan</button>
+                                <button class="btn-add" style="margin:0; background:#95a5a6; padding:5px" onclick="cancelEdit()">Batal</button>
+                            </div>
+                        </div>`;
+                } else {
+                    wrapper.innerHTML = `
+                        ${isNew ? '<div class="badge-new">NEW</div>' : ''}
+                        <a href="${data.url}" class="menu-item" style="background:${colors[i % colors.length]}">
+                            <span>${data.title}</span>
+                        </a>
+                        ${data.downloadUrl ? `<a href="${data.downloadUrl}" target="_blank" class="download-zone"><i class="fa-solid fa-circle-arrow-down"></i></a>` : ''}
+                        ${isAdmin ? `
+                        <div class="admin-controls">
+                            <button class="btn-ctrl" onclick="startEdit('${key}')"><i class="fa-solid fa-pen"></i></button>
+                            <button class="btn-ctrl" style="background:#e74c3c" onclick="deleteMenu('${key}')"><i class="fa-solid fa-trash"></i></button>
+                        </div>` : ''}`;
+                }
+                container.appendChild(wrapper);
+                i++;
+            }
+        }
+
+        function startEdit(key) { editingKey = key; renderMenus(); }
+        function cancelEdit() { editingKey = null; renderMenus(); }
+
+        function saveEdit(key) {
+            const title = document.getElementById(`ed-t-${key}`).value;
+            if(title) {
+                db.ref('menus/' + key).update({
+                    title: title,
+                    url: formatUrl(document.getElementById(`ed-u-${key}`).value),
+                    downloadUrl: formatUrl(document.getElementById(`ed-d-${key}`).value, true)
+                }).then(() => {
+                    editingKey = null;
+                    renderMenus();
+                });
+            }
+        }
+
+        function deleteMenu(key) { if(confirm("Hapus?")) db.ref('menus/' + key).remove(); }
+    </script>
 </body>
-</html>
+  </html>
