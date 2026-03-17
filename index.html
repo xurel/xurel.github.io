@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XUREL</title>
+    <title>Xurel - Link Shopee</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
@@ -34,32 +35,24 @@
             position: sticky; top: 0; z-index: 1000;
         }
 
-        .nav-links { display: flex; align-items: center; gap: 0; }
+        .nav-links { display: flex; align-items: center; gap: 5px; }
         
         .nav-item {
             text-decoration: none; color: #555; 
             display: flex; align-items: center; justify-content: center;
-            width: 45px; height: 45px; /* Box simetris */
+            width: 40px; height: 40px;
             border-radius: 12px; transition: 0.3s;
         }
         
-        .nav-item i { 
-            font-size: 1.3em; 
-            width: 25px; 
-            text-align: center; /* Ikon rata tengah */
-        }
+        .nav-item i { font-size: 1.2em; text-align: center; }
 
         .nav-item:hover, .nav-item.active { 
             color: #ff6b6b; 
             background: rgba(255, 107, 107, 0.1); 
         }
 
-        /* Pemisah Jelas & Modern */
         .nav-divider {
-            width: 1.5px;
-            height: 22px;
-            background: #e0e0e0;
-            margin: 0 4px;
+            width: 1.5px; height: 22px; background: #e0e0e0; margin: 0 4px;
         }
 
         .auth-container { position: relative; }
@@ -83,7 +76,7 @@
             background: white; padding: 25px; border-radius: 15px; margin: 20px 0;
             width: 90%; max-width: 600px; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
         }
-        .admin-input { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9; }
+        .admin-input, .admin-select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9; outline: none;}
         .btn-add { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 10px; }
 
         /* --- MENU CONTENT --- */
@@ -92,56 +85,69 @@
             background: rgba(255, 255, 255, 0.9); border-radius: 25px;
             padding: 30px; margin: 30px 0; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
-        .menu-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px; margin-top: 25px; }
+        .menu-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 25px; }
         .menu-wrapper { 
-            position: relative; flex: 1 1 calc(50% - 18px); min-width: 160px; 
-            overflow: hidden; border-radius: 18px; transition: 0.3s;
+            position: relative; flex: 1 1 calc(50% - 15px); min-width: 140px; 
+            overflow: hidden; border-radius: 15px; transition: 0.3s;
             display: flex; align-items: center;
         }
         
         .menu-item {
-            display: flex; align-items: center; justify-content: center;
-            width: 100%; min-height: 75px; 
-            padding: 20px 55px;
-            border-radius: 18px; font-weight: 600;
-            text-decoration: none; color: white; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            font-size: 1.1em; text-align: center;
-        }
-        .menu-item:hover { transform: translateY(-5px); }
-
-        .download-zone {
-            position: absolute; right: 0; top: 0; bottom: 0;
-            width: 50px; display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.08); 
-            border-left: 1.5px solid rgba(255,255,255,0.4);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; min-height: 65px; 
+            padding: 12px 20px; 
+            border-radius: 15px; font-weight: 600;
             text-decoration: none; color: white; transition: 0.3s;
-            z-index: 5;
+            font-size: 0.95em; 
+            text-align: center;
+            gap: 5px; 
         }
-        .download-zone:hover { background: rgba(255,255,255,0.2); }
-        .download-zone i { font-size: 1.5em; }
+        .menu-item:hover { transform: translateY(-3px); }
+
+        .details-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px; 
+        }
+
+        .price-text {
+            font-size: 0.8em;
+            font-weight: 400;
+            background: rgba(0, 0, 0, 0.15); 
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+
+        .status-badge {
+            font-size: 0.8em;
+            font-weight: 700;
+            background: rgba(231, 76, 60, 0.9); 
+            color: white; 
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase; 
+        }
 
         .edit-mode-container {
-            background: #fff; border-radius: 18px; padding: 15px; width: 100%;
+            background: #fff; border-radius: 15px; padding: 12px; width: 100%;
             display: flex; flex-direction: column; gap: 8px; border: 2px solid #ff6b6b;
         }
-        .edit-mode-container input { padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.85em; width: 100%; }
+        .edit-mode-container input, .edit-mode-container select { padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.85em; width: 100%; }
 
         .admin-controls { position: absolute; bottom: 5px; left: 8px; display: flex; gap: 4px; z-index: 10; }
         .btn-ctrl {
             background: rgba(0,0,0,0.2); color: white; border: none;
             width: 24px; height: 24px; border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; transition: 0.2s;
+            display: flex; align-items: center; justify-content: center;
             font-size: 10px;
         }
-        .btn-ctrl:hover { background: white; color: #333; }
         
         footer { width: 100%; padding: 20px; background: rgba(255,255,255,0.8); text-align: center; color: #666; margin-top: auto; }
-        .badge-new { position: absolute; top: 6px; left: 6px; background: #ff4757; color: white; font-size: 8px; padding: 2px 7px; border-radius: 10px; font-weight: bold; z-index: 2; }
+        .badge-new { position: absolute; top: 4px; right: 4px; background: #ff4757; color: white; font-size: 8px; padding: 2px 7px; border-radius: 10px; font-weight: bold; z-index: 2; }
 
         @media (max-width: 480px) { 
-            .nav-item span { display: none; } 
             .menu-wrapper { flex: 1 1 100%; }
-            .nav-divider { margin: 0 2px; }
         }
     </style>
 </head>
@@ -149,15 +155,9 @@
 
     <nav class="toolbar">
         <div class="nav-links">
-            <a href="#" class="nav-item active"><i class="fa-solid fa-house"></i> <span></span></a>
+            <a href="https://muzans.github.io/" class="nav-item active"><i class="fa-solid fa-house"></i></a>
+            <a href="#" class="nav-item"><i class="fa-solid fa-note-sticky"></i></a>
             <div class="nav-divider"></div>
-            <a href="https://muzans.github.io/note.html" class="nav-item"><i class="fa-solid fa-sticky-note"></i> <span></span></a>
-            <div class="nav-divider"></div>
-            <a href="https://muzans.github.io/cloud.html" class="nav-item"><i class="fa-solid fa-cloud-upload"></i> <span></span></a>
-            <div class="nav-divider"></div>
-            <a href="https://muzans.github.io/linkshopee.html" class="nav-item"><i class="fa-solid fa-key"></i> <span></span></a>
-            <div class="nav-divider"></div>
-            <a href="https://muzans.github.io/privacy_policy.html" class="nav-item"><i class="fa-solid fa-user"></i> <span></span></a>
         </div>
         <div class="auth-container" id="auth-wrapper">
             <button onclick="toggleLoginForm(event)" style="background:none; color:#555; border:1px solid #ddd; padding:8px 12px; border-radius:20px; cursor:pointer"><i class="fa-solid fa-user-lock"></i> Login</button>
@@ -174,45 +174,39 @@
     </nav>
 
     <div id="admin-panel">
-        <h3 style="margin-bottom:10px">Tambah Menu Baru</h3>
-        <input type="text" id="title" class="admin-input" placeholder="Judul Menu">
-        <input type="text" id="url" class="admin-input" placeholder="Link Halaman">
-        <input type="text" id="downloadUrl" class="admin-input" placeholder="Link Download (Opsional)">
+        <h3 style="margin-bottom:10px">Tambah Link Shopee</h3>
+        <input type="text" id="title" class="admin-input" placeholder="Nama Produk">
+        <input type="text" id="url" class="admin-input" placeholder="URL Link">
+        <input type="text" id="price" class="admin-input" placeholder="Harga (Misal: 150000)" oninput="formatRupiah(this)">
+        <select id="status" class="admin-select">
+            <option value="">-- Tanpa Label (Opsional) --</option>
+            <option value="STAR">Star</option>
+            <option value="MALL">Mall</option>
+        </select>
         <button class="btn-add" onclick="addMenu()">Terbitkan</button>
     </div>
 
     <div class="container">
+        <h2 style="color: #444; margin-bottom: 5px;">LINK SHOPEE</h2>
         <div id="menu-container" class="menu-list"></div>
     </div>
 
-<footer>
-    <p>&copy; 2026 Muzans Developer • Versi 24.1.26</p>
-    
-    <div style="margin-top: 15px; display: flex; justify-content: center;">
-        <script type="text/javascript">
-            atOptions = {
-                'key' : 'f823a394a8f46f4dc5b3d3501f958e59',
-                'format' : 'iframe',
-                'height' : 50,
-                'width' : 320,
-                'params' : {}
-            };
-        </script>
-        <script type="text/javascript" src="//www.highperformanceformat.com/f823a394a8f46f4dc5b3d3501f958e59/invoke.js"></script>
-    </div>
-</footer>
+    <footer>
+        <p>&copy; 2026 Muzans Developer • Link Shopee Edition</p>
+    </footer>
 
     <script>
         const firebaseConfig = {
-            apiKey: "AIzaSyD2gTavLSYU_zOC_BsIbJppvmrX_-RBDKw",
-            authDomain: "indexmuzans.firebaseapp.com",
-            databaseURL: "https://indexmuzans-default-rtdb.asia-southeast1.firebasedatabase.app",
-            projectId: "indexmuzans",
-            storageBucket: "indexmuzans.firebasestorage.app",
-            messagingSenderId: "861969659258",
-            appId: "1:861969659258:web:fe6eed813347c7f20a92c3",
-            measurementId: "G-ZFF6LVVML8"
+            apiKey: "AIzaSyDX5o3n7iQjqcS0ZJsbir_35JOpG7jqkPA",
+            authDomain: "link-shopee-bc394.firebaseapp.com",
+            projectId: "link-shopee-bc394",
+            storageBucket: "link-shopee-bc394.firebasestorage.app",
+            messagingSenderId: "111837568012",
+            appId: "1:111837568012:web:b34dc5675becd8ef896229",
+            measurementId: "G-2BLSC5YMS6",
+            databaseURL: "https://link-shopee-bc394-default-rtdb.asia-southeast1.firebasedatabase.app"
         };
+        
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
         const auth = firebase.auth();
@@ -221,10 +215,25 @@
         let editingKey = null;
         let menuDataCache = {};
 
-        // Auto-fill jika Remember Me aktif
+        function formatRupiah(element) {
+            let angka = element.value.replace(/[^,\d]/g, '').toString();
+            let split = angka.split(',');
+            let sisa = split[0].length % 3;
+            let rupiah = split[0].substr(0, sisa);
+            let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
+
+            if (ribuan) {
+                let separator = sisa ? '.' : '';
+                rupiah += separator + ribuan.join('.');
+            }
+
+            rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
+            element.value = rupiah ? 'Rp ' + rupiah : '';
+        }
+
         window.addEventListener('DOMContentLoaded', () => {
-            const savedEmail = localStorage.getItem('muzans_email');
-            const savedPass = localStorage.getItem('muzans_pass');
+            const savedEmail = localStorage.getItem('muzans_shopee_email');
+            const savedPass = localStorage.getItem('muzans_shopee_pass');
             if (savedEmail && savedPass) {
                 document.getElementById('email').value = savedEmail;
                 document.getElementById('password').value = savedPass;
@@ -252,15 +261,15 @@
             auth.signInWithEmailAndPassword(email, pass)
             .then(() => {
                 if(remember) {
-                    localStorage.setItem('muzans_email', email);
-                    localStorage.setItem('muzans_pass', pass);
+                    localStorage.setItem('muzans_shopee_email', email);
+                    localStorage.setItem('muzans_shopee_pass', pass);
                 } else {
-                    localStorage.removeItem('muzans_email');
-                    localStorage.removeItem('muzans_pass');
+                    localStorage.removeItem('muzans_shopee_email');
+                    localStorage.removeItem('muzans_shopee_pass');
                 }
                 document.getElementById('login-popup').style.display = 'none';
             })
-            .catch(() => alert("Gagal"));
+            .catch(() => alert("Gagal Login"));
         }
 
         function logout() { editingKey = null; auth.signOut(); }
@@ -273,29 +282,31 @@
             renderMenus(); 
         });
 
-        function formatUrl(input, isDl = false) {
-            if (!input) return isDl ? "" : "https://muzans.github.io/yasin.html";
-            if (input.startsWith('http')) return input;
-            return "https://muzans.github.io/" + (input.startsWith('/') ? input.substring(1) : input);
-        }
-
         function addMenu() {
             const title = document.getElementById('title').value;
-            if(title) {
-                db.ref('menus').push({
-                    title, 
-                    url: formatUrl(document.getElementById('url').value),
-                    downloadUrl: formatUrl(document.getElementById('downloadUrl').value, true),
-                    createdAt: new Date().toISOString().split('T')[0]
+            const url = document.getElementById('url').value;
+            const price = document.getElementById('price').value; 
+            const status = document.getElementById('status').value; 
+
+            if(title && url) {
+                db.ref('linkshopee').push({
+                    title: title, 
+                    url: url,
+                    price: price, 
+                    status: status, 
+                    createdAt: firebase.database.ServerValue.TIMESTAMP 
                 }).then(() => {
                     document.getElementById('title').value = "";
                     document.getElementById('url').value = "";
-                    document.getElementById('downloadUrl').value = "";
+                    document.getElementById('price').value = "";
+                    document.getElementById('status').value = ""; 
                 });
+            } else {
+                alert("Minimal Nama dan URL harus diisi!");
             }
         }
 
-        db.ref('menus').on('value', (snap) => {
+        db.ref('linkshopee').on('value', (snap) => {
             menuDataCache = snap.val() || {};
             renderMenus();
         });
@@ -305,19 +316,41 @@
             container.innerHTML = "";
             const colors = ['#ff6b6b', '#54a0ff', '#5f27cd', '#ff9f43', '#1dd1a1', '#00d2d3', '#f368e0', '#48dbfb', '#ee5253', '#10ac84'];
             
-            let i = 0;
-            for (let key in menuDataCache) {
+            const keys = Object.keys(menuDataCache);
+            const reversedKeys = keys.reverse();
+
+            reversedKeys.forEach((key, index) => {
                 const data = menuDataCache[key];
-                const isNew = Math.ceil(Math.abs(new Date() - new Date(data.createdAt)) / (1000 * 60 * 60 * 24)) <= 90;
+                
+                const itemDate = data.createdAt ? new Date(data.createdAt) : new Date();
+                const isNew = Math.ceil(Math.abs(new Date() - itemDate) / (1000 * 60 * 60 * 24)) <= 7;
+                
+                // MENDETEKSI DATA BARU ('status') DAN DATA LAMA ('isStar' / 'isMall')
+                let statusLabel = "";
+                if (data.status) {
+                    statusLabel = String(data.status).toUpperCase();
+                } else if (data.isStar === true || String(data.isStar).toLowerCase() === "true") {
+                    statusLabel = "STAR";
+                } else if (data.isMall === true || String(data.isMall).toLowerCase() === "true") {
+                    statusLabel = "MALL";
+                }
+
                 const wrapper = document.createElement('div');
                 wrapper.className = 'menu-wrapper';
 
                 if (isAdmin && editingKey === key) {
                     wrapper.innerHTML = `
                         <div class="edit-mode-container">
-                            <input type="text" id="ed-t-${key}" value="${data.title}">
-                            <input type="text" id="ed-u-${key}" value="${data.url}">
-                            <input type="text" id="ed-d-${key}" value="${data.downloadUrl || ''}">
+                            <input type="text" id="ed-t-${key}" value="${data.title}" placeholder="Nama Produk">
+                            <input type="text" id="ed-u-${key}" value="${data.url}" placeholder="URL">
+                            <input type="text" id="ed-p-${key}" value="${data.price || ''}" placeholder="Harga" oninput="formatRupiah(this)">
+                            
+                            <select id="ed-s-${key}" class="admin-select">
+                                <option value="" ${!statusLabel ? 'selected' : ''}>- Tanpa Label -</option>
+                                <option value="STAR" ${statusLabel === 'STAR' ? 'selected' : ''}>Star</option>
+                                <option value="MALL" ${statusLabel === 'MALL' ? 'selected' : ''}>Mall</option>
+                            </select>
+
                             <div style="display:flex; gap:5px;">
                                 <button class="btn-add" style="margin:0; background:#2ecc71; padding:5px" onclick="saveEdit('${key}')">Simpan</button>
                                 <button class="btn-add" style="margin:0; background:#95a5a6; padding:5px" onclick="cancelEdit()">Batal</button>
@@ -326,10 +359,13 @@
                 } else {
                     wrapper.innerHTML = `
                         ${isNew ? '<div class="badge-new">NEW</div>' : ''}
-                        <a href="${data.url}" class="menu-item" style="background:${colors[i % colors.length]}">
+                        <a href="${data.url}" target="_blank" class="menu-item" style="background:${colors[index % colors.length]}">
                             <span>${data.title}</span>
+                            <div class="details-container">
+                                ${statusLabel ? `<span class="status-badge">${statusLabel}</span>` : ''}
+                                ${data.price ? `<span class="price-text">${data.price}</span>` : ''}
+                            </div>
                         </a>
-                        ${data.downloadUrl ? `<a href="${data.downloadUrl}" target="_blank" class="download-zone"><i class="fa-solid fa-circle-arrow-down"></i></a>` : ''}
                         ${isAdmin ? `
                         <div class="admin-controls">
                             <button class="btn-ctrl" onclick="startEdit('${key}')"><i class="fa-solid fa-pen"></i></button>
@@ -337,28 +373,24 @@
                         </div>` : ''}`;
                 }
                 container.appendChild(wrapper);
-                i++;
-            }
+            });
         }
 
         function startEdit(key) { editingKey = key; renderMenus(); }
         function cancelEdit() { editingKey = null; renderMenus(); }
 
         function saveEdit(key) {
-            const title = document.getElementById(`ed-t-${key}`).value;
-            if(title) {
-                db.ref('menus/' + key).update({
-                    title: title,
-                    url: formatUrl(document.getElementById(`ed-u-${key}`).value),
-                    downloadUrl: formatUrl(document.getElementById(`ed-d-${key}`).value, true)
-                }).then(() => {
-                    editingKey = null;
-                    renderMenus();
-                });
-            }
+            // Kita memperbarui datanya dengan format 'status' yang baru,
+            // dan sengaja membiarkan data isStar/isMall lama tetap ada untuk keamanan.
+            db.ref('linkshopee/' + key).update({
+                title: document.getElementById(`ed-t-${key}`).value,
+                url: document.getElementById(`ed-u-${key}`).value,
+                price: document.getElementById(`ed-p-${key}`).value,
+                status: document.getElementById(`ed-s-${key}`).value 
+            }).then(() => { editingKey = null; renderMenus(); });
         }
 
-        function deleteMenu(key) { if(confirm("Hapus?")) db.ref('menus/' + key).remove(); }
+        function deleteMenu(key) { if(confirm("Hapus?")) db.ref('linkshopee/' + key).remove(); }
     </script>
 </body>
-  </html>
+</html>
