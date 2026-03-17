@@ -79,11 +79,31 @@
         .admin-input, .admin-select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9; outline: none;}
         .btn-add { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 10px; }
 
+        /* --- GENERATE NAMA PANEL --- */
+        .generate-container {
+            width: 95%; max-width: 700px;
+            background: rgba(255, 255, 255, 0.9); border-radius: 25px;
+            padding: 25px 30px; margin: 25px 0 5px 0; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+        .generate-box { 
+            display: flex; gap: 15px; justify-content: center; align-items: stretch; width: 100%; 
+        }
+        .generate-box input {
+            flex: 1; padding: 15px; border: 2px solid #ddd; border-radius: 15px;
+            font-size: 1.05em; font-weight: bold; color: #444; text-align: center; outline: none; background: #f8f9fa;
+        }
+        .generate-box button {
+            background: #54a0ff; color: white; border: none; padding: 15px 25px;
+            border-radius: 15px; cursor: pointer; font-weight: bold; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; font-size: 1.05em;
+        }
+        .generate-box button:hover { background: #2e86de; transform: translateY(-2px); }
+
         /* --- MENU CONTENT --- */
         .container {
             flex: 1; width: 95%; max-width: 700px; text-align: center;
             background: rgba(255, 255, 255, 0.9); border-radius: 25px;
-            padding: 30px; margin: 30px 0; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            padding: 30px; margin: 20px 0 30px 0; box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
         }
         .menu-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 25px; }
         .menu-wrapper { 
@@ -148,6 +168,10 @@
 
         @media (max-width: 480px) { 
             .menu-wrapper { flex: 1 1 100%; }
+            .generate-box { flex-direction: column; }
+            .generate-box button { width: 100%; justify-content: center; }
+            .generate-container { padding: 20px; }
+            .container { padding: 20px; }
         }
     </style>
 </head>
@@ -186,6 +210,13 @@
         <button class="btn-add" onclick="addMenu()">Terbitkan</button>
     </div>
 
+    <div class="generate-container">
+        <div class="generate-box">
+            <input type="text" id="generatedNameOutput" placeholder="Nama akan muncul di sini..." readonly>
+            <button id="btn-generate" onclick="generateAndCopy()"><i class="fa-solid fa-shuffle"></i> Acak Nama</button>
+        </div>
+    </div>
+
     <div class="container">
         <h2 style="color: #444; margin-bottom: 5px;">LINK SHOPEE</h2>
         <div id="menu-container" class="menu-list"></div>
@@ -196,6 +227,61 @@
     </footer>
 
     <script>
+        // --- LOGIKA GENERATE NAMA ---
+        let listFirstNames = [];
+        let listLastNames = [];
+
+        // Mengambil data JSON dari GitHub
+        fetch('https://raw.githubusercontent.com/muzans/muzans.github.io/main/base.json')
+            .then(response => response.json())
+            .then(data => {
+                listFirstNames = data.FirstNames || [];
+                // Jika LastNames ada, pakai itu. Jika belum ada, pinjam dari FirstNames
+                listLastNames = data.LastNames || data.FirstNames || []; 
+            })
+            .catch(error => console.error('Gagal mengambil data nama:', error));
+
+        function generateAndCopy() {
+            if (listFirstNames.length === 0) {
+                alert("Data sedang dimuat dari server, silakan coba beberapa detik lagi.");
+                return;
+            }
+
+            // Mengacak nama dengan sistem Math.random tingkat tinggi
+            const randomFirst = listFirstNames[Math.floor(Math.random() * listFirstNames.length)];
+            let randomLast = listLastNames[Math.floor(Math.random() * listLastNames.length)];
+            
+            // Memastikan nama belakang tidak sama persis dengan nama depan
+            while (randomFirst === randomLast && listLastNames.length > 1) {
+                randomLast = listLastNames[Math.floor(Math.random() * listLastNames.length)];
+            }
+
+            const fullName = `${randomFirst} ${randomLast}`;
+
+            // Menampilkan hasil
+            const inputOutput = document.getElementById('generatedNameOutput');
+            inputOutput.value = fullName;
+
+            // Menyalin ke Clipboard
+            navigator.clipboard.writeText(fullName).then(() => {
+                const btn = document.getElementById('btn-generate');
+                const originalText = '<i class="fa-solid fa-shuffle"></i> Acak Nama';
+                
+                // Efek sukses saat berhasil disalin
+                btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin!';
+                btn.style.background = '#2ecc71';
+                
+                setTimeout(() => { 
+                    btn.innerHTML = originalText; 
+                    btn.style.background = '#54a0ff';
+                }, 1500);
+            }).catch(err => {
+                alert("Gagal menyalin teks: " + err);
+            });
+        }
+        // -----------------------------
+
+        // Konfigurasi Firebase Shopee
         const firebaseConfig = {
             apiKey: "AIzaSyDX5o3n7iQjqcS0ZJsbir_35JOpG7jqkPA",
             authDomain: "link-shopee-bc394.firebaseapp.com",
@@ -325,7 +411,6 @@
                 const itemDate = data.createdAt ? new Date(data.createdAt) : new Date();
                 const isNew = Math.ceil(Math.abs(new Date() - itemDate) / (1000 * 60 * 60 * 24)) <= 7;
                 
-                // MENDETEKSI DATA BARU ('status') DAN DATA LAMA ('isStar' / 'isMall')
                 let statusLabel = "";
                 if (data.status) {
                     statusLabel = String(data.status).toUpperCase();
@@ -380,8 +465,6 @@
         function cancelEdit() { editingKey = null; renderMenus(); }
 
         function saveEdit(key) {
-            // Kita memperbarui datanya dengan format 'status' yang baru,
-            // dan sengaja membiarkan data isStar/isMall lama tetap ada untuk keamanan.
             db.ref('linkshopee/' + key).update({
                 title: document.getElementById(`ed-t-${key}`).value,
                 url: document.getElementById(`ed-u-${key}`).value,
