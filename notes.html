@@ -37,29 +37,19 @@
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
         .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 
-        /* MODIFIKASI KARTU */
         .card { 
             background: white; padding: 15px; border-radius: 12px; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
             transition: 0.2s; height: 110px; display: flex; flex-direction: column; 
-            position: relative; /* Penting untuk posisi nomor */
+            position: relative;
         }
         .card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
         
-        .card-title { 
-            font-weight: 700; font-size: 14px; color: var(--dark-color); 
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-            margin-bottom: 4px;
-        }
-        
-        .card-preview { 
-            font-size: 11px; color: #666; overflow: hidden; 
-            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; 
-        }
+        .card-title { font-weight: 700; font-size: 14px; color: var(--dark-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
+        .card-preview { font-size: 11px; color: #666; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
-        /* LABEL NOMOR DI KANAN BAWAH */
         .note-index { 
-            position: absolute; bottom: 10px; right: 10px;
+            position: absolute; bottom: 10px; left: 10px;
             font-size: 10px; background: #f0f0f0; padding: 2px 8px; 
             border-radius: 6px; color: #888; font-weight: bold;
             border: 1px solid #e0e0e0;
@@ -76,12 +66,6 @@
             border-radius: 15px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 250px; z-index: 1100; 
         }
 
-        .remember-container {
-            display: flex; align-items: center; gap: 10px; margin-bottom: 15px;
-            cursor: pointer; font-size: 13px; color: #555; width: fit-content;
-        }
-        .remember-container input { width: 16px; height: 16px; cursor: pointer; margin: 0; }
-
         .fab {
             position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; 
             background: var(--primary-color); color: white; border-radius: 50%;
@@ -97,7 +81,13 @@
         .form-control:focus { border-color: var(--primary-color); }
         
         textarea.form-control { font-family: monospace; resize: vertical; min-height: 200px; line-height: 1.5; }
-        textarea.view-area { background: #f8f9fa; border-color: transparent; }
+        
+        .view-area { 
+            background: #f8f9fa; border-color: transparent; min-height: 200px; 
+            max-height: 50vh; overflow-y: auto; white-space: pre-wrap; word-wrap: break-word; 
+        }
+        .text-link { color: #3498db; text-decoration: none; font-weight: 500; }
+        .text-link:hover { text-decoration: underline; color: #2980b9; }
 
         .btn { padding: 12px 18px; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; font-size: 14px; transition: 0.2s; }
         .btn-save { background: var(--secondary-color); color: white; width: 100%; }
@@ -123,9 +113,12 @@
             <div id="login-fields">
                 <input type="email" id="login-email" class="form-control" placeholder="Email Admin" style="margin-bottom:10px">
                 <input type="password" id="login-pass" class="form-control" placeholder="Password" style="margin-bottom:10px">
-                <label class="remember-container">
-                    <input type="checkbox" id="remember-check"> Ingat Saya
-                </label>
+                
+                <div style="display:flex; align-items:center; margin-bottom:15px; font-size:12px; color:var(--dark-color);">
+                    <input type="checkbox" id="login-remember" checked style="margin-right:5px; cursor:pointer;">
+                    <label for="login-remember" style="cursor:pointer;">Ingat saya</label>
+                </div>
+
                 <button class="btn btn-save" onclick="login()">Login</button>
             </div>
             <div id="logout-field" class="hidden">
@@ -158,7 +151,9 @@
             <button onclick="closeModal('detail-modal')" style="border:none; background:none; cursor:pointer; color:#a4b0be; font-size:18px;"><i class="fas fa-times"></i></button>
         </div>
         <input type="text" id="view-title" class="form-control" readonly style="border:none; padding:0; font-size:20px; font-weight:800; margin-bottom:15px; background:transparent">
-        <textarea id="view-content" class="form-control view-area" readonly></textarea>
+        
+        <div id="view-content" class="form-control view-area"></div>
+        
         <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button class="btn btn-edit" onclick="editFromDetail()"><i class="fas fa-edit"></i> Edit</button>
             <button class="btn btn-copy" onclick="copyNote()"><i class="fas fa-copy"></i> Salin</button>
@@ -186,16 +181,7 @@
     let currentUser = null;
     let selectedNoteKey = null;
     let isEditing = false;
-
-    window.onload = function() {
-        const savedEmail = localStorage.getItem('rem_e');
-        const savedPass = localStorage.getItem('rem_p');
-        if(savedEmail) {
-            document.getElementById('login-email').value = savedEmail;
-            document.getElementById('login-pass').value = savedPass;
-            document.getElementById('remember-check').checked = true;
-        }
-    };
+    let currentRawContent = "";
 
     auth.onAuthStateChanged(user => {
         currentUser = user;
@@ -208,35 +194,28 @@
 
     function toggleLoginPopup() { document.getElementById('login-popup').classList.toggle('hidden'); }
 
-    window.onclick = function(e) {
+    document.addEventListener('click', function(event) {
         const popup = document.getElementById('login-popup');
         const btn = document.getElementById('user-menu-btn');
-        if (!popup.classList.contains('hidden') && !popup.contains(e.target) && !btn.contains(e.target)) {
+        if (!popup.classList.contains('hidden') && !popup.contains(event.target) && !btn.contains(event.target)) {
             popup.classList.add('hidden');
         }
-    };
-
-    function closeModal(id) {
-        document.getElementById(id).style.display = 'none';
-        isEditing = false;
-    }
+    });
 
     function login() {
         const e = document.getElementById('login-email').value;
         const p = document.getElementById('login-pass').value;
-        const rem = document.getElementById('remember-check').checked;
-        auth.signInWithEmailAndPassword(e, p).then(() => {
-            if(rem) { localStorage.setItem('rem_e', e); localStorage.setItem('rem_p', p); }
-            else { localStorage.removeItem('rem_e'); localStorage.removeItem('rem_p'); }
-            document.getElementById('login-popup').classList.add('hidden');
-        }).catch(() => alert("Email atau Password salah!"));
+        const remember = document.getElementById('login-remember').checked;
+        const persistence = remember ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
+
+        auth.setPersistence(persistence)
+            .then(() => auth.signInWithEmailAndPassword(e, p))
+            .then(() => {
+                document.getElementById('login-popup').classList.add('hidden');
+            }).catch(() => alert("Gagal Login!"));
     }
 
-    function logout() { 
-        if(confirm("Logout sekarang?")) {
-            auth.signOut().then(() => { window.location.reload(); });
-        }
-    }
+    function logout() { auth.signOut().then(() => window.location.reload()); }
 
     function switchTab(t) {
         currentTab = t;
@@ -245,34 +224,39 @@
         initSync();
     }
 
+    // Path disesuaikan dengan folder "xurel"
     function getDbPath() {
         return (currentTab === 'private' && currentUser) 
             ? `notes/xurel/users/${currentUser.uid}` 
             : 'notes/xurel/public';
     }
 
+    function autoLinkText(text) {
+        const urlRegex = /(https?:\/\/[^\s]+)/g;
+        return text.replace(urlRegex, function(url) {
+            return `<a href="${url}" target="_blank" class="text-link" onclick="event.stopPropagation()">${url}</a>`;
+        });
+    }
+
     function initSync() {
         const grid = document.getElementById('notes-grid');
         const path = getDbPath();
-        
         db.ref(path).off();
         db.ref(path).orderByChild('timestamp').on('value', snapshot => {
             grid.innerHTML = '';
             let items = [];
             snapshot.forEach(child => { items.push({ key: child.key, ...child.val() }); });
 
-            // Urutan: terbaru di atas
             items.reverse().forEach((d, index) => {
-                // index + 1 jika dihitung dari bawah (urutan pembuatan)
-                // Di sini saya gunakan total items - index agar nomor tetap konsisten
                 const noteNumber = items.length - index; 
-                
                 const card = document.createElement('div');
                 card.className = 'card';
+                
                 card.onclick = () => openDetailModal(d.key, d, noteNumber);
+
                 card.innerHTML = `
                     <div class="card-title">${escapeHTML(d.title) || 'Untitled'}</div>
-                    <div class="card-preview">${escapeHTML(d.content)}</div>
+                    <div class="card-preview">${autoLinkText(escapeHTML(d.content))}</div>
                     <div class="note-index">${noteNumber}</div>
                 `;
                 grid.appendChild(card);
@@ -284,22 +268,16 @@
         const t = document.getElementById('node-title').value;
         const c = document.getElementById('node-content').value;
         if(!c || c.trim() === "") return alert("Konten kosong!");
-
         const path = getDbPath();
         const data = { title: t || "Untitled", content: c, timestamp: Date.now() };
-
         const promise = (isEditing && selectedNoteKey) 
             ? db.ref(`${path}/${selectedNoteKey}`).update(data)
             : db.ref(path).push(data);
-
         promise.then(() => closeModal('form-modal')).catch(() => alert("Gagal!"));
     }
 
     function copyNote() {
-        const content = document.getElementById('view-content').value;
-        navigator.clipboard.writeText(content).then(() => {
-            alert("Berhasil disalin!");
-        });
+        navigator.clipboard.writeText(currentRawContent).then(() => alert("Berhasil disalin!"));
     }
 
     function confirmDelete() {
@@ -313,30 +291,32 @@
         return str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
     }
 
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; isEditing = false; }
     function openAddModal() {
         isEditing = false;
         document.getElementById('node-title').value = "";
         document.getElementById('node-content').value = "";
-        document.getElementById('form-modal-title').innerText = "Catatan Baru";
         document.getElementById('form-modal').style.display = 'flex';
     }
-
+    
     function openDetailModal(key, data, number) {
         selectedNoteKey = key;
+        currentRawContent = data.content;
         document.getElementById('view-tag').innerText = (currentTab === 'private' ? "🔒 PRIVATE #" : "🌐 PUBLIC #") + number;
         document.getElementById('view-title').value = data.title;
-        document.getElementById('view-content').value = data.content;
+        
+        document.getElementById('view-content').innerHTML = autoLinkText(escapeHTML(data.content));
+        
         document.getElementById('detail-modal').style.display = 'flex';
     }
-
+    
     function editFromDetail() {
         const t = document.getElementById('view-title').value;
-        const c = document.getElementById('view-content').value;
+        const c = currentRawContent;
         closeModal('detail-modal');
         isEditing = true;
         document.getElementById('node-title').value = t;
         document.getElementById('node-content').value = c;
-        document.getElementById('form-modal-title').innerText = "Edit Catatan";
         document.getElementById('form-modal').style.display = 'flex';
     }
 </script>
