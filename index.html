@@ -27,7 +27,6 @@
             display: flex; flex-direction: column; align-items: center;
         }
 
-        /* --- TOOLBAR --- */
         .toolbar {
             width: 100%; background: rgba(255, 255, 255, 0.95);
             padding: 8px 15px; display: flex; justify-content: space-between;
@@ -71,7 +70,6 @@
             font-size: 0.85em; color: #666; cursor: pointer;
         }
 
-        /* --- ADMIN PANEL --- */
         #admin-panel {
             background: white; padding: 25px; border-radius: 15px; margin: 20px 0;
             width: 90%; max-width: 600px; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);
@@ -79,7 +77,6 @@
         .admin-input, .admin-select { width: 100%; padding: 10px; margin: 5px 0; border: 1px solid #eee; border-radius: 8px; background: #f9f9f9; outline: none;}
         .btn-add { background: #2ecc71; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; transition: 0.3s; margin-top: 10px; }
 
-        /* --- GENERATE NAMA PANEL --- */
         .generate-container {
             width: 95%; max-width: 700px;
             background: rgba(255, 255, 255, 0.9); border-radius: 25px;
@@ -99,7 +96,6 @@
         }
         .generate-box button:hover { background: #2e86de; transform: translateY(-2px); }
 
-        /* --- MENU CONTENT --- */
         .container {
             flex: 1; width: 95%; max-width: 700px; text-align: center;
             background: rgba(255, 255, 255, 0.9); border-radius: 25px;
@@ -124,30 +120,9 @@
         }
         .menu-item:hover { transform: translateY(-3px); }
 
-        .details-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px; 
-        }
-
-        .price-text {
-            font-size: 0.8em;
-            font-weight: 400;
-            background: rgba(0, 0, 0, 0.15); 
-            padding: 2px 8px;
-            border-radius: 10px;
-        }
-
-        .status-badge {
-            font-size: 0.8em;
-            font-weight: 700;
-            background: rgba(231, 76, 60, 0.9); 
-            color: white; 
-            padding: 2px 8px;
-            border-radius: 10px;
-            text-transform: uppercase; 
-        }
+        .details-container { display: flex; align-items: center; justify-content: center; gap: 6px; }
+        .price-text { font-size: 0.8em; font-weight: 400; background: rgba(0, 0, 0, 0.15); padding: 2px 8px; border-radius: 10px; }
+        .status-badge { font-size: 0.8em; font-weight: 700; background: rgba(231, 76, 60, 0.9); color: white; padding: 2px 8px; border-radius: 10px; text-transform: uppercase; }
 
         .edit-mode-container {
             background: #fff; border-radius: 15px; padding: 12px; width: 100%;
@@ -170,8 +145,6 @@
             .menu-wrapper { flex: 1 1 100%; }
             .generate-box { flex-direction: column; }
             .generate-box button { width: 100%; justify-content: center; }
-            .generate-container { padding: 20px; }
-            .container { padding: 20px; }
         }
     </style>
 </head>
@@ -184,7 +157,7 @@
             <div class="nav-divider"></div>
         </div>
         <div class="auth-container" id="auth-wrapper">
-            <button onclick="toggleLoginForm(event)" style="background:none; color:#555; border:1px solid #ddd; padding:8px 12px; border-radius:20px; cursor:pointer"><i class="fa-solid fa-user-lock"></i> Login</button>
+            <button onclick="toggleLoginForm(event)" id="btn-login-ui" style="background:none; color:#555; border:1px solid #ddd; padding:8px 12px; border-radius:20px; cursor:pointer"><i class="fa-solid fa-user-lock"></i> Login</button>
             <div class="login-popup" id="login-popup">
                 <input type="email" id="email" placeholder="Email Admin">
                 <input type="password" id="password" placeholder="Password">
@@ -213,7 +186,7 @@
     <div class="generate-container">
         <div class="generate-box">
             <input type="text" id="generatedNameOutput" placeholder="---" readonly>
-            <button id="btn-generate" onclick="generateAndCopy()"><i class="fa-solid fa-shuffle"></i> Acak Nama</button>
+            <button id="btn-generate" onclick="handleGenerate()"><i class="fa-solid fa-shuffle"></i> Acak Nama</button>
         </div>
     </div>
 
@@ -227,61 +200,88 @@
     </footer>
 
     <script>
-        // --- LOGIKA GENERATE NAMA ---
+        // --- LOGIKA GENERATE NAMA & COPY (FIXED) ---
         let listFirstNames = [];
         let listLastNames = [];
 
-        // Mengambil data JSON dari GitHub
         fetch('https://raw.githubusercontent.com/muzans/muzans.github.io/main/base.json')
             .then(response => response.json())
             .then(data => {
                 listFirstNames = data.FirstNames || [];
-                // Jika LastNames ada, pakai itu. Jika belum ada, pinjam dari FirstNames
                 listLastNames = data.LastNames || data.FirstNames || []; 
             })
             .catch(error => console.error('Gagal mengambil data nama:', error));
 
-        function generateAndCopy() {
+        function handleGenerate() {
             if (listFirstNames.length === 0) {
-                alert("Data sedang dimuat dari server, silakan coba beberapa detik lagi.");
+                alert("Data sedang dimuat, tunggu sebentar...");
                 return;
             }
 
-            // Mengacak nama dengan sistem Math.random tingkat tinggi
             const randomFirst = listFirstNames[Math.floor(Math.random() * listFirstNames.length)];
             let randomLast = listLastNames[Math.floor(Math.random() * listLastNames.length)];
             
-            // Memastikan nama belakang tidak sama persis dengan nama depan
             while (randomFirst === randomLast && listLastNames.length > 1) {
                 randomLast = listLastNames[Math.floor(Math.random() * listLastNames.length)];
             }
 
             const fullName = `${randomFirst} ${randomLast}`;
-
-            // Menampilkan hasil
             const inputOutput = document.getElementById('generatedNameOutput');
             inputOutput.value = fullName;
 
-            // Menyalin ke Clipboard
-            navigator.clipboard.writeText(fullName).then(() => {
-                const btn = document.getElementById('btn-generate');
-                const originalText = '<i class="fa-solid fa-shuffle"></i> Acak Nama';
-                
-                // Efek sukses saat berhasil disalin
-                btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin!';
-                btn.style.background = '#2ecc71';
-                
-                setTimeout(() => { 
-                    btn.innerHTML = originalText; 
-                    btn.style.background = '#54a0ff';
-                }, 1500);
-            }).catch(err => {
-                alert("Gagal menyalin teks: " + err);
-            });
+            copyToClipboard(fullName);
         }
-        // -----------------------------
 
-        // Konfigurasi Firebase Shopee
+        // Fungsi Salin yang Lebih Kuat (Fallback Method)
+        function copyToClipboard(text) {
+            const btn = document.getElementById('btn-generate');
+            const originalText = '<i class="fa-solid fa-shuffle"></i> Acak Nama';
+
+            // Coba metode modern (Clipboard API)
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text)
+                .then(() => showSuccessEffect(btn, originalText))
+                .catch(() => fallbackCopy(text, btn, originalText));
+            } else {
+                // Gunakan fallback jika tidak didukung/aman
+                fallbackCopy(text, btn, originalText);
+            }
+        }
+
+        function fallbackCopy(text, btn, originalText) {
+            try {
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed"; 
+                textArea.style.left = "-9999px";
+                textArea.style.top = "0";
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+                
+                if (successful) {
+                    showSuccessEffect(btn, originalText);
+                } else {
+                    alert("Gagal menyalin secara otomatis. Silakan salin manual.");
+                }
+            } catch (err) {
+                alert("Browser tidak mendukung fitur salin otomatis.");
+            }
+        }
+
+        function showSuccessEffect(btn, original) {
+            btn.innerHTML = '<i class="fa-solid fa-check"></i> Tersalin!';
+            btn.style.background = '#2ecc71';
+            setTimeout(() => { 
+                btn.innerHTML = original; 
+                btn.style.background = '#54a0ff';
+            }, 1500);
+        }
+
+        // --- KONFIGURASI FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyDX5o3n7iQjqcS0ZJsbir_35JOpG7jqkPA",
             authDomain: "link-shopee-bc394.firebaseapp.com",
@@ -307,12 +307,10 @@
             let sisa = split[0].length % 3;
             let rupiah = split[0].substr(0, sisa);
             let ribuan = split[0].substr(sisa).match(/\d{3}/gi);
-
             if (ribuan) {
                 let separator = sisa ? '.' : '';
                 rupiah += separator + ribuan.join('.');
             }
-
             rupiah = split[1] != undefined ? rupiah + ',' + split[1] : rupiah;
             element.value = rupiah ? 'Rp ' + rupiah : '';
         }
@@ -343,7 +341,6 @@
             const email = document.getElementById('email').value;
             const pass = document.getElementById('password').value;
             const remember = document.getElementById('rememberMe').checked;
-
             auth.signInWithEmailAndPassword(email, pass)
             .then(() => {
                 if(remember) {
@@ -364,7 +361,7 @@
             isAdmin = !!user;
             document.getElementById('admin-panel').style.display = isAdmin ? 'block' : 'none';
             document.getElementById('btn-logout').style.display = isAdmin ? 'block' : 'none';
-            document.querySelector('[onclick="toggleLoginForm(event)"]').style.display = isAdmin ? 'none' : 'block';
+            document.getElementById('btn-login-ui').style.display = isAdmin ? 'none' : 'block';
             renderMenus(); 
         });
 
@@ -373,13 +370,9 @@
             const url = document.getElementById('url').value;
             const price = document.getElementById('price').value; 
             const status = document.getElementById('status').value; 
-
             if(title && url) {
                 db.ref('linkshopee').push({
-                    title: title, 
-                    url: url,
-                    price: price, 
-                    status: status, 
+                    title: title, url: url, price: price, status: status, 
                     createdAt: firebase.database.ServerValue.TIMESTAMP 
                 }).then(() => {
                     document.getElementById('title').value = "";
@@ -387,9 +380,7 @@
                     document.getElementById('price').value = "";
                     document.getElementById('status').value = ""; 
                 });
-            } else {
-                alert("Minimal Nama dan URL harus diisi!");
-            }
+            } else { alert("Minimal Nama dan URL harus diisi!"); }
         }
 
         db.ref('linkshopee').on('value', (snap) => {
@@ -401,24 +392,12 @@
             const container = document.getElementById('menu-container');
             container.innerHTML = "";
             const colors = ['#ff6b6b', '#54a0ff', '#5f27cd', '#ff9f43', '#1dd1a1', '#00d2d3', '#f368e0', '#48dbfb', '#ee5253', '#10ac84'];
-            
-            const keys = Object.keys(menuDataCache);
-            const reversedKeys = keys.reverse();
+            const reversedKeys = Object.keys(menuDataCache).reverse();
 
             reversedKeys.forEach((key, index) => {
                 const data = menuDataCache[key];
-                
-                const itemDate = data.createdAt ? new Date(data.createdAt) : new Date();
-                const isNew = Math.ceil(Math.abs(new Date() - itemDate) / (1000 * 60 * 60 * 24)) <= 7;
-                
-                let statusLabel = "";
-                if (data.status) {
-                    statusLabel = String(data.status).toUpperCase();
-                } else if (data.isStar === true || String(data.isStar).toLowerCase() === "true") {
-                    statusLabel = "STAR";
-                } else if (data.isMall === true || String(data.isMall).toLowerCase() === "true") {
-                    statusLabel = "MALL";
-                }
+                const isNew = Math.ceil(Math.abs(new Date() - (data.createdAt || Date.now())) / (1000 * 60 * 60 * 24)) <= 7;
+                let statusLabel = data.status || (data.isStar ? "STAR" : data.isMall ? "MALL" : "");
 
                 const wrapper = document.createElement('div');
                 wrapper.className = 'menu-wrapper';
@@ -426,16 +405,14 @@
                 if (isAdmin && editingKey === key) {
                     wrapper.innerHTML = `
                         <div class="edit-mode-container">
-                            <input type="text" id="ed-t-${key}" value="${data.title}" placeholder="Nama Produk">
-                            <input type="text" id="ed-u-${key}" value="${data.url}" placeholder="URL">
-                            <input type="text" id="ed-p-${key}" value="${data.price || ''}" placeholder="Harga" oninput="formatRupiah(this)">
-                            
+                            <input type="text" id="ed-t-${key}" value="${data.title}">
+                            <input type="text" id="ed-u-${key}" value="${data.url}">
+                            <input type="text" id="ed-p-${key}" value="${data.price || ''}" oninput="formatRupiah(this)">
                             <select id="ed-s-${key}" class="admin-select">
                                 <option value="" ${!statusLabel ? 'selected' : ''}>- Tanpa Label -</option>
                                 <option value="STAR" ${statusLabel === 'STAR' ? 'selected' : ''}>Star</option>
                                 <option value="MALL" ${statusLabel === 'MALL' ? 'selected' : ''}>Mall</option>
                             </select>
-
                             <div style="display:flex; gap:5px;">
                                 <button class="btn-add" style="margin:0; background:#2ecc71; padding:5px" onclick="saveEdit('${key}')">Simpan</button>
                                 <button class="btn-add" style="margin:0; background:#95a5a6; padding:5px" onclick="cancelEdit()">Batal</button>
@@ -463,7 +440,6 @@
 
         function startEdit(key) { editingKey = key; renderMenus(); }
         function cancelEdit() { editingKey = null; renderMenus(); }
-
         function saveEdit(key) {
             db.ref('linkshopee/' + key).update({
                 title: document.getElementById(`ed-t-${key}`).value,
@@ -472,7 +448,6 @@
                 status: document.getElementById(`ed-s-${key}`).value 
             }).then(() => { editingKey = null; renderMenus(); });
         }
-
         function deleteMenu(key) { if(confirm("Hapus?")) db.ref('linkshopee/' + key).remove(); }
     </script>
 </body>
