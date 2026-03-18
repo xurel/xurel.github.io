@@ -17,6 +17,7 @@
             --bg-color: #f0f2f5;
             --white: #ffffff;
             --border-color: #dcdde1;
+            --accent-color: #f39c12;
         }
 
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-color); margin: 0; padding-bottom: 100px; }
@@ -36,14 +37,33 @@
         .container { max-width: 1200px; margin: 20px auto; padding: 0 15px; }
         .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
 
+        /* MODIFIKASI KARTU */
         .card { 
             background: white; padding: 15px; border-radius: 12px; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer;
-            transition: 0.2s; height: 110px; display: flex; flex-direction: column; justify-content: space-between;
+            transition: 0.2s; height: 110px; display: flex; flex-direction: column; 
+            position: relative; /* Penting untuk posisi nomor */
         }
         .card:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .card-title { font-weight: 700; font-size: 14px; color: var(--dark-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .card-preview { font-size: 11px; color: #666; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+        
+        .card-title { 
+            font-weight: 700; font-size: 14px; color: var(--dark-color); 
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            margin-bottom: 4px;
+        }
+        
+        .card-preview { 
+            font-size: 11px; color: #666; overflow: hidden; 
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; 
+        }
+
+        /* LABEL NOMOR DI KANAN BAWAH */
+        .note-index { 
+            position: absolute; bottom: 10px; right: 10px;
+            font-size: 10px; background: #f0f0f0; padding: 2px 8px; 
+            border-radius: 6px; color: #888; font-weight: bold;
+            border: 1px solid #e0e0e0;
+        }
 
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6);
@@ -69,7 +89,6 @@
             box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4); cursor: pointer; border: none; z-index: 1500;
         }
 
-        .form-group { margin-bottom: 15px; }
         .form-control {
             width: 100%; padding: 12px 15px; border: 1.5px solid var(--border-color); 
             border-radius: 10px; box-sizing: border-box; font-family: inherit; font-size: 14px;
@@ -84,6 +103,7 @@
         .btn-save { background: var(--secondary-color); color: white; width: 100%; }
         .btn-cancel { background: #edeff1; color: #57606f; flex: 1; }
         .btn-edit { background: var(--primary-color); color: white; flex: 1; }
+        .btn-copy { background: var(--accent-color); color: white; flex: 1; }
         .btn-delete { background: var(--danger-color); color: white; }
 
         .hidden { display: none !important; }
@@ -93,12 +113,10 @@
 
 <header>
     <a href="https://xurel.github.io" class="home-link"><i class="fas fa-home"></i></a>
-    
     <div class="nav-tabs">
         <button id="tab-pub" class="tab-btn active" onclick="switchTab('public')"><i class="fas fa-users"></i></button>
         <button id="tab-priv" class="tab-btn hidden" onclick="switchTab('private')"><i class="fas fa-lock"></i></button>
     </div>
-
     <div style="position: relative;">
         <button class="tab-btn" id="user-menu-btn" onclick="toggleLoginPopup()"><i class="fas fa-user-circle" style="font-size: 20px;"></i></button>
         <div id="login-popup" class="login-popup hidden">
@@ -128,7 +146,7 @@
         <textarea id="node-content" class="form-control" placeholder="Tempel teks atau script di sini..."></textarea>
         <div style="display: flex; gap: 12px; margin-top: 5px;">
             <button type="button" class="btn btn-cancel" onclick="closeModal('form-modal')">Batal</button>
-            <button type="button" class="btn btn-save" style="flex:2" onclick="handleSave()">Simpan Catatan</button>
+            <button type="button" class="btn btn-save" style="flex:2" onclick="handleSave()">Simpan</button>
         </div>
     </div>
 </div>
@@ -143,6 +161,7 @@
         <textarea id="view-content" class="form-control view-area" readonly></textarea>
         <div style="display: flex; gap: 10px; margin-top: 20px;">
             <button class="btn btn-edit" onclick="editFromDetail()"><i class="fas fa-edit"></i> Edit</button>
+            <button class="btn btn-copy" onclick="copyNote()"><i class="fas fa-copy"></i> Salin</button>
             <button class="btn btn-delete" onclick="confirmDelete()"><i class="fas fa-trash"></i></button>
         </div>
     </div>
@@ -168,7 +187,6 @@
     let selectedNoteKey = null;
     let isEditing = false;
 
-    // Load Remember Me
     window.onload = function() {
         const savedEmail = localStorage.getItem('rem_e');
         const savedPass = localStorage.getItem('rem_p');
@@ -188,9 +206,7 @@
         initSync();
     });
 
-    function toggleLoginPopup() { 
-        document.getElementById('login-popup').classList.toggle('hidden'); 
-    }
+    function toggleLoginPopup() { document.getElementById('login-popup').classList.toggle('hidden'); }
 
     window.onclick = function(e) {
         const popup = document.getElementById('login-popup');
@@ -218,11 +234,7 @@
 
     function logout() { 
         if(confirm("Logout sekarang?")) {
-            document.getElementById('login-popup').classList.add('hidden');
-            document.getElementById('tab-priv').classList.add('hidden');
-            auth.signOut().then(() => {
-                window.location.replace(window.location.origin + window.location.pathname);
-            });
+            auth.signOut().then(() => { window.location.reload(); });
         }
     }
 
@@ -233,7 +245,6 @@
         initSync();
     }
 
-    // --- PERUBAHAN PATH DISINI (SUB-FOLDER XUREL) ---
     function getDbPath() {
         return (currentTab === 'private' && currentUser) 
             ? `notes/xurel/users/${currentUser.uid}` 
@@ -242,26 +253,37 @@
 
     function initSync() {
         const grid = document.getElementById('notes-grid');
-        grid.innerHTML = '';
         const path = getDbPath();
         
         db.ref(path).off();
-        db.ref(path).orderByChild('timestamp').on('child_added', snap => {
-            const d = snap.val();
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.onclick = () => openDetailModal(snap.key, d);
-            card.innerHTML = `<div><div class="card-title">${d.title || 'Untitled'}</div><div class="card-preview">${escapeHTML(d.content)}</div></div>`;
-            grid.prepend(card);
+        db.ref(path).orderByChild('timestamp').on('value', snapshot => {
+            grid.innerHTML = '';
+            let items = [];
+            snapshot.forEach(child => { items.push({ key: child.key, ...child.val() }); });
+
+            // Urutan: terbaru di atas
+            items.reverse().forEach((d, index) => {
+                // index + 1 jika dihitung dari bawah (urutan pembuatan)
+                // Di sini saya gunakan total items - index agar nomor tetap konsisten
+                const noteNumber = items.length - index; 
+                
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.onclick = () => openDetailModal(d.key, d, noteNumber);
+                card.innerHTML = `
+                    <div class="card-title">${escapeHTML(d.title) || 'Untitled'}</div>
+                    <div class="card-preview">${escapeHTML(d.content)}</div>
+                    <div class="note-index">${noteNumber}</div>
+                `;
+                grid.appendChild(card);
+            });
         });
-        db.ref(path).on('child_removed', () => initSync());
-        db.ref(path).on('child_changed', () => initSync());
     }
 
     function handleSave() {
         const t = document.getElementById('node-title').value;
         const c = document.getElementById('node-content').value;
-        if(!c || c.trim() === "") return alert("Konten tidak boleh kosong!");
+        if(!c || c.trim() === "") return alert("Konten kosong!");
 
         const path = getDbPath();
         const data = { title: t || "Untitled", content: c, timestamp: Date.now() };
@@ -270,16 +292,21 @@
             ? db.ref(`${path}/${selectedNoteKey}`).update(data)
             : db.ref(path).push(data);
 
-        promise.then(() => closeModal('form-modal')).catch(() => alert("Gagal simpan"));
+        promise.then(() => closeModal('form-modal')).catch(() => alert("Gagal!"));
+    }
+
+    function copyNote() {
+        const content = document.getElementById('view-content').value;
+        navigator.clipboard.writeText(content).then(() => {
+            alert("Berhasil disalin!");
+        });
     }
 
     function confirmDelete() {
-        if(confirm("Hapus catatan ini?")) {
-            const path = getDbPath();
-            db.ref(`${path}/${selectedNoteKey}`).remove().then(() => closeModal('detail-modal'));
+        if(confirm("Hapus?")) {
+            db.ref(`${getDbPath()}/${selectedNoteKey}`).remove().then(() => closeModal('detail-modal'));
         }
     }
-    // --- AKHIR PERUBAHAN ---
 
     function escapeHTML(str) {
         if(!str) return "";
@@ -290,13 +317,13 @@
         isEditing = false;
         document.getElementById('node-title').value = "";
         document.getElementById('node-content').value = "";
-        document.getElementById('form-modal-title').innerText = currentTab === 'private' ? "Catatan Privat Baru" : "Catatan Publik Baru";
+        document.getElementById('form-modal-title').innerText = "Catatan Baru";
         document.getElementById('form-modal').style.display = 'flex';
     }
 
-    function openDetailModal(key, data) {
+    function openDetailModal(key, data, number) {
         selectedNoteKey = key;
-        document.getElementById('view-tag').innerText = currentTab === 'private' ? "🔒 PRIVATE" : "🌐 PUBLIC";
+        document.getElementById('view-tag').innerText = (currentTab === 'private' ? "🔒 PRIVATE #" : "🌐 PUBLIC #") + number;
         document.getElementById('view-title').value = data.title;
         document.getElementById('view-content').value = data.content;
         document.getElementById('detail-modal').style.display = 'flex';
