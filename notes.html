@@ -135,11 +135,12 @@
 <div id="form-modal" class="modal-overlay" onclick="closeModal('form-modal')">
     <div class="modal-content" onclick="event.stopPropagation()">
         <h3 id="form-modal-title" style="margin-top:0; margin-bottom:20px;">Catatan Baru</h3>
-        <input type="text" id="node-title" class="form-control" placeholder="Masukkan Judul..." style="margin-bottom:15px; font-weight:600;">
+        <input type="text" id="node-title" class="form-control" placeholder="Masukkan Judul (Kosongkan untuk penomoran otomatis)" style="margin-bottom:15px; font-weight:600;">
         <textarea id="node-content" class="form-control" placeholder="Tempel teks atau script di sini..."></textarea>
-        <div style="display: flex; gap: 12px; margin-top: 5px;">
+        <div style="display: flex; gap: 10px; margin-top: 5px;">
             <button type="button" class="btn btn-cancel" onclick="closeModal('form-modal')">Batal</button>
-            <button type="button" class="btn btn-save" style="flex:2" onclick="handleSave()">Simpan</button>
+            <button type="button" class="btn btn-copy" style="flex:1" onclick="pasteFromClipboard()">Tempel</button>
+            <button type="button" class="btn btn-save" style="flex:1.5" onclick="handleSave()">Simpan</button>
         </div>
     </div>
 </div>
@@ -224,7 +225,6 @@
         initSync();
     }
 
-    // Path disesuaikan dengan folder "xurel"
     function getDbPath() {
         return (currentTab === 'private' && currentUser) 
             ? `notes/xurel/users/${currentUser.uid}` 
@@ -264,20 +264,73 @@
         });
     }
 
+    // Fungsi baru untuk menempelkan teks dari clipboard
+    async function pasteFromClipboard() {
+        try {
+            const text = await navigator.clipboard.readText();
+            const textarea = document.getElementById('node-content');
+            
+            // Masukkan teks di posisi kursor
+            const startPos = textarea.selectionStart;
+            const endPos = textarea.selectionEnd;
+            textarea.value = textarea.value.substring(0, startPos) + text + textarea.value.substring(endPos, textarea.value.length);
+            
+            // Pindahkan kursor ke akhir teks yang ditempel
+            textarea.selectionStart = textarea.selectionEnd = startPos + text.length;
+            textarea.focus();
+        } catch (err) {
+            alert("Gagal menempelkan teks. Pastikan browser memiliki izin untuk membaca clipboard.");
+        }
+    }
+
+    // Modifikasi handleSave untuk penomoran otomatis
     function handleSave() {
-        const t = document.getElementById('node-title').value;
+        let t = document.getElementById('node-title').value.trim();
         const c = document.getElementById('node-content').value;
         if(!c || c.trim() === "") return alert("Konten kosong!");
+        
         const path = getDbPath();
-        const data = { title: t || "Untitled", content: c, timestamp: Date.now() };
+
+        // Jika judul kosong, cari angka terkecil yang belum digunakan
+        if (!t) {
+            db.ref(path).once('value').then(snapshot => {
+                let usedNumbers = new Set();
+                
+                snapshot.forEach(child => {
+                    // Jika sedang edit, jangan masukkan judul aslinya sendiri ke daftar angka terpakai
+                    if (isEditing && child.key === selectedNoteKey) return; 
+                    
+                    let titleStr = child.val().title;
+                    if (titleStr && /^\d+$/.test(titleStr.toString().trim())) {
+                        usedNumbers.add(parseInt(titleStr.toString().trim()));
+                    }
+                });
+
+                let nextNum = 1;
+                while (usedNumbers.has(nextNum)) {
+                    nextNum++;
+                }
+                
+                // Simpan dengan judul angka yang ditemukan
+                executeSave(nextNum.toString(), c, path);
+            });
+        } else {
+            // Jika judul diisi manual, langsung simpan
+            executeSave(t, c, path);
+        }
+    }
+
+    function executeSave(title, content, path) {
+        const data = { title: title, content: content, timestamp: Date.now() };
         const promise = (isEditing && selectedNoteKey) 
             ? db.ref(`${path}/${selectedNoteKey}`).update(data)
             : db.ref(path).push(data);
         promise.then(() => closeModal('form-modal')).catch(() => alert("Gagal!"));
     }
 
+    // Menghilangkan alert notifikasi setelah copy
     function copyNote() {
-        navigator.clipboard.writeText(currentRawContent).then(() => alert("Berhasil disalin!"));
+        navigator.clipboard.writeText(currentRawContent);
     }
 
     function confirmDelete() {
@@ -292,6 +345,7 @@
     }
 
     function closeModal(id) { document.getElementById(id).style.display = 'none'; isEditing = false; }
+    
     function openAddModal() {
         isEditing = false;
         document.getElementById('node-title').value = "";
