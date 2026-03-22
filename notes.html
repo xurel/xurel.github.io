@@ -48,11 +48,11 @@
         .card-title { font-weight: 700; font-size: 14px; color: var(--dark-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-bottom: 4px; }
         .card-preview { font-size: 11px; color: #666; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
 
-        .note-index { 
+        .note-date { 
             position: absolute; bottom: 10px; left: 10px;
-            font-size: 10px; background: #f0f0f0; padding: 2px 8px; 
-            border-radius: 6px; color: #888; font-weight: bold;
-            border: 1px solid #e0e0e0;
+            font-size: 9px; background: #f8f9fa; padding: 2px 6px; 
+            border-radius: 4px; color: #999; font-weight: 600;
+            border: 1px solid #eee; text-transform: uppercase;
         }
 
         .modal-overlay {
@@ -135,12 +135,11 @@
 <div id="form-modal" class="modal-overlay" onclick="closeModal('form-modal')">
     <div class="modal-content" onclick="event.stopPropagation()">
         <h3 id="form-modal-title" style="margin-top:0; margin-bottom:20px;">Catatan Baru</h3>
-        <input type="text" id="node-title" class="form-control" placeholder="Masukkan Judul (Kosongkan untuk penomoran otomatis)" style="margin-bottom:15px; font-weight:600;">
-        <textarea id="node-content" class="form-control" placeholder="Tempel teks atau script di sini..."></textarea>
-        <div style="display: flex; gap: 10px; margin-top: 5px;">
+        <input type="text" id="node-title" class="form-control" placeholder="Judul (Kosongkan untuk auto-number)" style="margin-bottom:15px; font-weight:600;">
+        <textarea id="node-content" class="form-control" placeholder="Tulis sesuatu..."></textarea>
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
             <button type="button" class="btn btn-cancel" onclick="closeModal('form-modal')">Batal</button>
-            <button type="button" class="btn btn-copy" style="flex:1" onclick="pasteFromClipboard()">Tempel</button>
-            <button type="button" class="btn btn-save" style="flex:1.5" onclick="handleSave()">Simpan</button>
+            <button type="button" class="btn btn-save" style="flex:2" onclick="handleSave()">Simpan</button>
         </div>
     </div>
 </div>
@@ -238,6 +237,15 @@
         });
     }
 
+    function formatDate(ts) {
+        if(!ts) return "--/--/--";
+        const d = new Date(ts);
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const year = String(d.getFullYear()).slice(-2);
+        return `${day}/${month}/${year}`;
+    }
+
     function initSync() {
         const grid = document.getElementById('notes-grid');
         const path = getDbPath();
@@ -247,43 +255,21 @@
             let items = [];
             snapshot.forEach(child => { items.push({ key: child.key, ...child.val() }); });
 
-            items.reverse().forEach((d, index) => {
-                const noteNumber = items.length - index; 
+            items.reverse().forEach((d) => {
                 const card = document.createElement('div');
                 card.className = 'card';
-                
-                card.onclick = () => openDetailModal(d.key, d, noteNumber);
+                card.onclick = () => openDetailModal(d.key, d);
 
                 card.innerHTML = `
                     <div class="card-title">${escapeHTML(d.title) || 'Untitled'}</div>
                     <div class="card-preview">${autoLinkText(escapeHTML(d.content))}</div>
-                    <div class="note-index">${noteNumber}</div>
+                    <div class="note-date">${formatDate(d.timestamp)}</div>
                 `;
                 grid.appendChild(card);
             });
         });
     }
 
-    // Fungsi baru untuk menempelkan teks dari clipboard
-    async function pasteFromClipboard() {
-        try {
-            const text = await navigator.clipboard.readText();
-            const textarea = document.getElementById('node-content');
-            
-            // Masukkan teks di posisi kursor
-            const startPos = textarea.selectionStart;
-            const endPos = textarea.selectionEnd;
-            textarea.value = textarea.value.substring(0, startPos) + text + textarea.value.substring(endPos, textarea.value.length);
-            
-            // Pindahkan kursor ke akhir teks yang ditempel
-            textarea.selectionStart = textarea.selectionEnd = startPos + text.length;
-            textarea.focus();
-        } catch (err) {
-            alert("Gagal menempelkan teks. Pastikan browser memiliki izin untuk membaca clipboard.");
-        }
-    }
-
-    // Modifikasi handleSave untuk penomoran otomatis
     function handleSave() {
         let t = document.getElementById('node-title').value.trim();
         const c = document.getElementById('node-content').value;
@@ -291,31 +277,21 @@
         
         const path = getDbPath();
 
-        // Jika judul kosong, cari angka terkecil yang belum digunakan
         if (!t) {
             db.ref(path).once('value').then(snapshot => {
                 let usedNumbers = new Set();
-                
                 snapshot.forEach(child => {
-                    // Jika sedang edit, jangan masukkan judul aslinya sendiri ke daftar angka terpakai
                     if (isEditing && child.key === selectedNoteKey) return; 
-                    
                     let titleStr = child.val().title;
                     if (titleStr && /^\d+$/.test(titleStr.toString().trim())) {
                         usedNumbers.add(parseInt(titleStr.toString().trim()));
                     }
                 });
-
                 let nextNum = 1;
-                while (usedNumbers.has(nextNum)) {
-                    nextNum++;
-                }
-                
-                // Simpan dengan judul angka yang ditemukan
+                while (usedNumbers.has(nextNum)) { nextNum++; }
                 executeSave(nextNum.toString(), c, path);
             });
         } else {
-            // Jika judul diisi manual, langsung simpan
             executeSave(t, c, path);
         }
     }
@@ -328,13 +304,12 @@
         promise.then(() => closeModal('form-modal')).catch(() => alert("Gagal!"));
     }
 
-    // Menghilangkan alert notifikasi setelah copy
     function copyNote() {
         navigator.clipboard.writeText(currentRawContent);
     }
 
     function confirmDelete() {
-        if(confirm("Hapus?")) {
+        if(confirm("Hapus catatan ini?")) {
             db.ref(`${getDbPath()}/${selectedNoteKey}`).remove().then(() => closeModal('detail-modal'));
         }
     }
@@ -353,14 +328,12 @@
         document.getElementById('form-modal').style.display = 'flex';
     }
     
-    function openDetailModal(key, data, number) {
+    function openDetailModal(key, data) {
         selectedNoteKey = key;
         currentRawContent = data.content;
-        document.getElementById('view-tag').innerText = (currentTab === 'private' ? "🔒 PRIVATE #" : "🌐 PUBLIC #") + number;
+        document.getElementById('view-tag').innerText = (currentTab === 'private' ? "🔒 PRIVATE | " : "🌐 PUBLIC | ") + formatDate(data.timestamp);
         document.getElementById('view-title').value = data.title;
-        
         document.getElementById('view-content').innerHTML = autoLinkText(escapeHTML(data.content));
-        
         document.getElementById('detail-modal').style.display = 'flex';
     }
     
