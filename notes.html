@@ -50,8 +50,8 @@
 
         .note-date { 
             position: absolute; bottom: 10px; left: 10px;
-            font-size: 9px; background: #f8f9fa; padding: 2px 6px; 
-            border-radius: 4px; color: #999; font-weight: 600;
+            font-size: 8.5px; background: #f8f9fa; padding: 2px 6px; 
+            border-radius: 4px; color: #888; font-weight: 600;
             border: 1px solid #eee; text-transform: uppercase;
         }
 
@@ -237,13 +237,21 @@
         });
     }
 
+    // Fungsi penanggalan yang diperbarui (Hari, DD/MM/YY Jam)
     function formatDate(ts) {
-        if(!ts) return "--/--/--";
+        if(!ts) return "---";
+        const days = ['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
         const d = new Date(ts);
+        
+        const dayName = days[d.getDay()];
         const day = String(d.getDate()).padStart(2, '0');
         const month = String(d.getMonth() + 1).padStart(2, '0');
         const year = String(d.getFullYear()).slice(-2);
-        return `${day}/${month}/${year}`;
+        
+        const hours = String(d.getHours()).padStart(2, '0');
+        const minutes = String(d.getMinutes()).padStart(2, '0');
+
+        return `${dayName}, ${day}/${month}/${year} ${hours}:${minutes}`;
     }
 
     function initSync() {
@@ -331,7 +339,7 @@
     function openDetailModal(key, data) {
         selectedNoteKey = key;
         currentRawContent = data.content;
-        document.getElementById('view-tag').innerText = (currentTab === 'private' ? "🔒 PRIVATE | " : "🌐 PUBLIC | ") + formatDate(data.timestamp);
+        document.getElementById('view-tag').innerText = (currentTab === 'private' ? "🔒 PRIV | " : "🌐 PUB | ") + formatDate(data.timestamp);
         document.getElementById('view-title').value = data.title;
         document.getElementById('view-content').innerHTML = autoLinkText(escapeHTML(data.content));
         document.getElementById('detail-modal').style.display = 'flex';
