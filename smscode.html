@@ -5,112 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XUREl - Shopee Panel</title>
     <style>
-        :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; --teal: #238636; }
+        :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { width: 100%; max-width: 400px; }
         
-        /* Animasi Smooth */
-        @keyframes fadeInSlide {
-            0% { opacity: 0; transform: translateY(15px); }
-            100% { opacity: 1; transform: translateY(0); }
-        }
-        .anim-slide { animation: fadeInSlide 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
-        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .anim { animation: fadeIn 0.4s ease forwards; }
+
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
-        .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; transition: color 0.3s ease; }
+        .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; }
         
-        .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: all 0.2s ease-in-out; }
-        .price-item:hover { background: #21262d; border-left: 4px solid var(--org); padding-left: 19px; }
+        .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; }
+        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
+        .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
         .price-item:last-child { border-bottom: none; }
         
-        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.3s ease; }
-        .order-card:hover { border-color: #484f58; }
+        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; position: relative; }
+        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; padding: 5px; border-radius: 5px; transition: 0.2s; display: inline-block; }
+        .phone-box:active { background: var(--brd); color: var(--blu); }
         
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--brd); border-radius: 8px; overflow: hidden; margin-top: 15px; border: 1px solid var(--brd); }
-        .btn { background: var(--card); border: none; padding: 12px; color: #8b949e; font-size: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: all 0.2s ease; }
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
+        .btn { background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .btn:not(:disabled):hover { background: #21262d; color: #fff; }
         
         .section-title { font-size: 12px; color: #8b949e; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; }
-        .badge-active { background: rgba(35, 134, 54, 0.15); color: var(--grn); padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; }
+        .copy-hint { font-size: 9px; color: var(--blu); display: block; margin-top: -15px; margin-bottom: 15px; opacity: 0.7; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h3 style="margin:0; color:var(--org); font-size: 18px; display:flex; align-items:center; gap:8px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-            XUREl Shopee
-        </h3>
+        <h3 style="margin:0; color:var(--org); font-size: 18px;">› XUREl Shopee</h3>
         <div style="text-align:right;">
-            <div style="font-size:10px; color:#8b949e; font-weight: bold; letter-spacing: 1px;">SALDO (IDR)</div>
-            <div id="balDisplay" class="bal-val">Memuat...</div>
+            <div style="font-size:10px; color:#8b949e; font-weight: bold;">SALDO (IDR)</div>
+            <div id="balDisplay" class="bal-val">...</div>
         </div>
     </div>
 
     <div id="activeOrdersContainer"></div>
 
     <div class="section-title">PESAN NOMOR BARU</div>
-    <div class="price-list anim-slide" id="priceContainer">
-        <div style="padding:40px; text-align:center; color:#8b949e; font-size: 14px; opacity:0.7;">Sedang memuat stok Shopee...</div>
+    <div class="price-list" id="priceContainer">
+        <div style="padding:40px; text-align:center; color:#8b949e;">Memuat stok...</div>
     </div>
 </div>
 
 <script>
     const WORKER = "https://smscode.aam-zip.workers.dev";
-    let poller;
 
     async function init() {
         updateBalance();
         loadPrices();
         pollActiveOrders();
-        poller = setInterval(pollActiveOrders, 5000);
-        
-        // Timer global yang berjalan setiap detik untuk mengupdate tampilan hitung mundur
-        setInterval(updateAllTimers, 1000);
+        setInterval(pollActiveOrders, 5000);
+        setInterval(updateTimers, 1000);
     }
 
     async function updateBalance() {
         try {
-            const bRes = await fetch(`${WORKER}/get-balance`);
-            const bJson = await bRes.json();
-            if(bJson.success) {
-                document.getElementById('balDisplay').innerText = `Rp ${bJson.data.balance.toLocaleString('id-ID')}`;
-            }
+            const res = await fetch(`${WORKER}/get-balance`);
+            const json = await res.json();
+            if(json.success) document.getElementById('balDisplay').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`;
         } catch(e) {}
     }
 
     async function loadPrices() {
         try {
-            const pRes = await fetch(`${WORKER}/get-prices`);
-            const pJson = await pRes.json();
+            const res = await fetch(`${WORKER}/get-prices`);
+            const json = await res.json();
             const container = document.getElementById('priceContainer');
-            
-            if (pJson.success && pJson.data.length > 0) {
-                container.innerHTML = pJson.data.map(i => `
+            if (json.success && json.data.length > 0) {
+                container.innerHTML = json.data.map(i => `
                     <div class="price-item" onclick="buy(${i.id}, ${i.price})">
                         <div>
-                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; color: #fff;">${i.name || 'Shopee ID'}</div>
-                            <div style="color: var(--grn); font-weight: bold; font-family: monospace; font-size: 13px;">Rp ${i.price.toLocaleString('id-ID')}</div>
+                            <div style="font-weight:bold; font-size:14px; color:#fff;">${i.name}</div>
+                            <div style="color:var(--grn); font-size:13px;">Rp ${i.price.toLocaleString('id-ID')}</div>
                         </div>
-                        <div style="text-align: right;">
-                            <span style="background: rgba(139, 148, 158, 0.15); padding: 5px 10px; border-radius: 6px; font-size: 11px; color: #8b949e; font-weight: bold;">${i.available} stok</span>
-                        </div>
+                        <div style="font-size:11px; color:#8b949e;">${i.available} stok</div>
                     </div>
                 `).join('');
-            } else {
-                container.innerHTML = `<div style="padding:40px; text-align:center; color:#8b949e;">Stok Shopee sedang kosong.</div>`;
-            }
-        } catch (e) {
-            document.getElementById('priceContainer').innerHTML = `<div style="padding:40px; text-align:center; color:#f85149;">Gagal memuat harga.</div>`;
-        }
+            } else { container.innerHTML = '<div style="padding:40px; text-align:center;">Stok Kosong</div>'; }
+        } catch (e) {}
     }
 
     async function buy(pid, price) {
-        if(!confirm(`Pesan nomor ini seharga Rp ${price.toLocaleString('id-ID')}?`)) return;
-        
+        if(!confirm(`Beli nomor seharga Rp ${price}?`)) return;
         try {
             const res = await fetch(`${WORKER}/create-order`, {
                 method: "POST",
@@ -118,137 +99,99 @@
                 body: JSON.stringify({ product_id: pid })
             });
             const json = await res.json();
-            
             if(json.success) {
-                const orderData = json.data.orders[0];
-                // Simpan nomor dan waktu berakhir (20 menit dari sekarang) ke LocalStorage
-                localStorage.setItem('xurel_phone_' + orderData.id, orderData.phone_number);
-                localStorage.setItem('xurel_timer_' + orderData.id, Date.now() + (20 * 60 * 1000));
-                
+                const order = json.data.orders[0];
+                localStorage.setItem('x_p_' + order.id, order.phone_number);
+                localStorage.setItem('x_t_' + order.id, Date.now() + (20 * 60 * 1000));
+                pollActiveOrders();
                 updateBalance();
-                pollActiveOrders(); 
-            } else { 
-                alert("Gagal Memesan: " + (json.error?.message || "Saldo tidak cukup atau stok habis")); 
-                loadPrices();
-            }
-        } catch (e) {
-            alert("Terjadi kesalahan jaringan.");
-        }
+            } else { alert(json.error.message); }
+        } catch (e) {}
     }
 
     async function pollActiveOrders() {
         try {
             const res = await fetch(`${WORKER}/get-active`);
             const json = await res.json();
-            
-            if(json.success) {
-                renderActiveOrders(json.data);
-            }
+            if(json.success) renderOrders(json.data);
         } catch(e) {} 
     }
 
-    function renderActiveOrders(orders) {
+    function renderOrders(orders) {
         const container = document.getElementById('activeOrdersContainer');
-        
-        if (!orders || orders.length === 0) {
-            container.innerHTML = '';
-            return;
-        }
+        if (!orders || orders.length === 0) { container.innerHTML = ''; return; }
 
-        // Jangan merender ulang seluruh HTML jika strukturnya tidak berubah untuk mencegah kedipan (flicker)
-        let htmlBuilder = '';
-        
-        orders.forEach(o => {
-            const savedPhone = localStorage.getItem('xurel_phone_' + o.id);
-            const phone = o.phone || o.phone_number || o.phoneNumber || o.number || savedPhone || 'Memuat...';
+        container.innerHTML = orders.map(o => {
+            const savedPhone = localStorage.getItem('x_p_' + o.id);
+            const phone = o.phone || o.phone_number || savedPhone || 'Mencari...';
             
-            // Setel Timer jika belum ada
-            if (!localStorage.getItem('xurel_timer_' + o.id)) {
-                localStorage.setItem('xurel_timer_' + o.id, Date.now() + (20 * 60 * 1000));
-            }
+            // Simpan ke local jika detektif worker berhasil nemuin nomor dari web asli
+            if(o.phone && !savedPhone) localStorage.setItem('x_p_' + o.id, o.phone);
+            if(!localStorage.getItem('x_t_' + o.id)) localStorage.setItem('x_t_' + o.id, Date.now() + (20 * 60 * 1000));
             
             const otp = o.otp_code || 'Waiting for OTP...';
             const otpColor = o.otp_code ? 'var(--grn)' : '#8b949e';
-            const btnState = o.otp_code ? '' : 'disabled';
             
-            htmlBuilder += `
-            <div class="order-card anim-slide" id="order-${o.id}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px dashed var(--brd); padding-bottom: 15px; align-items:center;">
-                    <span style="color:var(--grn); font-weight:bold; font-family: monospace; font-size:15px; display:flex; align-items:center; gap:8px;">
-                        #${o.id} <span class="badge-active">ACTIVE</span>
-                    </span>
-                    <span class="countdown-timer" data-id="${o.id}" style="color:var(--blu); font-family:monospace; font-weight:bold; font-size:14px; letter-spacing:1px;">--:--</span>
+            return `
+            <div class="order-card anim">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px;">
+                    <span style="color:var(--grn); font-weight:bold; font-family:monospace;">#${o.id}</span>
+                    <span class="timer" data-id="${o.id}" style="color:var(--blu); font-family:monospace; font-weight:bold;">--:--</span>
                 </div>
-                
-                <div style="font-size:11px; color:#8b949e; margin-bottom: 6px; letter-spacing:1px;">PHONE</div>
-                <div style="font-size:24px; font-weight:bold; color:var(--text); margin-bottom:20px; font-family: monospace; letter-spacing: 2px;">${phone}</div>
-                
-                <div style="font-size:11px; color:#8b949e; margin-bottom: 6px; letter-spacing:1px;">OTP</div>
-                <div style="font-size:22px; font-weight:bold; color:${otpColor}; font-family: monospace; min-height:30px; ${o.otp_code ? 'letter-spacing:4px;' : 'font-style:italic; font-size:18px;'}">${otp}</div>
-                
-                <div class="btn-grid">
-                    <button class="btn" onclick="sendAction('finish', ${o.id})" ${btnState} style="${o.otp_code ? 'color:var(--grn)' : ''}">✓ Selesai</button>
-                    <button class="btn" onclick="sendAction('cancel', ${o.id})">✕ Batal</button>
+                <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">KLIK NOMOR UNTUK SALIN:</div>
+                <div class="phone-box" onclick="copyText('${phone}')">${phone}</div>
+                <span class="copy-hint" id="hint-${phone}">Tap to copy</span>
+                <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">OTP:</div>
+                <div style="font-size:22px; font-weight:bold; color:${otpColor}; font-family:monospace; min-height:30px;">${otp}</div>
+                <div class="btn-grid-4">
+                    <button class="btn" onclick="act('finish', ${o.id})" ${o.otp_code?'':'disabled'}>Done</button>
+                    <button class="btn" onclick="act('resend', ${o.id})">Resend</button>
+                    <button class="btn" onclick="act('cancel', ${o.id})">Cancel</button>
+                    <button class="btn" onclick="act('replace', ${o.id})">Replace</button>
                 </div>
-            </div>
-            `;
-        });
-        
-        // Update DOM hanya jika ada perubahan agar tidak berkedip
-        if (container.innerHTML !== htmlBuilder) {
-            container.innerHTML = htmlBuilder;
+            </div>`;
+        }).join('');
+    }
+
+    function copyText(txt) {
+        navigator.clipboard.writeText(txt);
+        const hint = document.getElementById('hint-'+txt);
+        if(hint) {
+            hint.innerText = "Copied!";
+            hint.style.color = "var(--grn)";
+            setTimeout(() => { hint.innerText = "Tap to copy"; hint.style.color = "var(--blu)"; }, 2000);
         }
     }
 
-    // Fungsi untuk mengupdate semua timer di layar secara bersamaan (sangat smooth)
-    function updateAllTimers() {
-        document.querySelectorAll('.countdown-timer').forEach(el => {
-            const id = el.getAttribute('data-id');
-            const endTimeStr = localStorage.getItem('xurel_timer_' + id);
-            
-            if (endTimeStr) {
-                const endTime = parseInt(endTimeStr);
-                const now = Date.now();
-                const diffSecs = Math.max(0, Math.floor((endTime - now) / 1000));
-                
-                const m = Math.floor(diffSecs / 60);
-                const s = diffSecs % 60;
-                
-                el.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-                
-                // Ubah warna menjadi merah jika waktu hampir habis (< 3 menit)
-                if (diffSecs < 180) {
-                    el.style.color = "var(--org)";
-                }
+    function updateTimers() {
+        document.querySelectorAll('.timer').forEach(el => {
+            const id = el.dataset.id;
+            const end = localStorage.getItem('x_t_' + id);
+            if(end) {
+                const diff = Math.max(0, Math.floor((parseInt(end) - Date.now()) / 1000));
+                el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
             }
         });
     }
 
-    async function sendAction(act, id) {
-        if(act === 'cancel' && !confirm("Batalkan pesanan ini?")) return;
-        
+    async function act(a, id) {
+        if(!confirm("Lanjutkan aksi?")) return;
         try {
             const res = await fetch(`${WORKER}/order-action`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: id, action: act })
+                body: JSON.stringify({ id: id, action: a })
             });
             const json = await res.json();
-            
             if(json.success) {
-                localStorage.removeItem('xurel_phone_' + id);
-                localStorage.removeItem('xurel_timer_' + id);
-                
-                updateBalance();
-                // Paksa render ulang agar kartu yang dihapus langsung hilang
-                document.getElementById('activeOrdersContainer').innerHTML = ''; 
+                if(a !== 'resend') {
+                    localStorage.removeItem('x_p_' + id);
+                    localStorage.removeItem('x_t_' + id);
+                }
                 pollActiveOrders();
-            } else {
-                alert("Gagal: Belum bisa dibatalkan. Tunggu minimal 2 menit setelah pemesanan.");
-            }
-        } catch (e) { 
-            alert("Error jaringan saat mengirim aksi."); 
-        }
+                updateBalance();
+            } else { alert(json.error.message); }
+        } catch (e) {}
     }
 
     init();
