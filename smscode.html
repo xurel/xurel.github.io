@@ -8,29 +8,20 @@
         :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { width: 100%; max-width: 400px; }
-        
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .anim { animation: fadeIn 0.4s ease forwards; }
-
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
         .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; }
-        
         .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; }
-        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
+        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; }
         .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
-        .price-item:last-child { border-bottom: none; }
-        
-        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; position: relative; }
-        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; padding: 5px; border-radius: 5px; transition: 0.2s; display: inline-block; }
-        .phone-box:active { background: var(--brd); color: var(--blu); }
-        
+        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
+        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; }
         .btn-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
-        .btn { background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn { background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .btn:disabled { opacity: 0.3; }
         .btn:not(:disabled):hover { background: #21262d; color: #fff; }
-        
         .section-title { font-size: 12px; color: #8b949e; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; }
-        .copy-hint { font-size: 9px; color: var(--blu); display: block; margin-top: -15px; margin-bottom: 15px; opacity: 0.7; }
     </style>
 </head>
 <body>
@@ -43,13 +34,9 @@
             <div id="balDisplay" class="bal-val">...</div>
         </div>
     </div>
-
     <div id="activeOrdersContainer"></div>
-
     <div class="section-title">PESAN NOMOR BARU</div>
-    <div class="price-list" id="priceContainer">
-        <div style="padding:40px; text-align:center; color:#8b949e;">Memuat stok...</div>
-    </div>
+    <div class="price-list" id="priceContainer"><div style="padding:40px; text-align:center; color:#8b949e;">Memuat...</div></div>
 </div>
 
 <script>
@@ -60,61 +47,41 @@
         loadPrices();
         pollActiveOrders();
         setInterval(pollActiveOrders, 5000);
-        setInterval(updateTimers, 1000);
     }
 
     async function updateBalance() {
-        try {
-            const res = await fetch(`${WORKER}/get-balance`);
-            const json = await res.json();
-            if(json.success) document.getElementById('balDisplay').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`;
-        } catch(e) {}
+        const res = await fetch(`${WORKER}/get-balance`);
+        const json = await res.json();
+        if(json.success) document.getElementById('balDisplay').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`;
     }
 
     async function loadPrices() {
-        try {
-            const res = await fetch(`${WORKER}/get-prices`);
-            const json = await res.json();
-            const container = document.getElementById('priceContainer');
-            if (json.success && json.data.length > 0) {
-                container.innerHTML = json.data.map(i => `
-                    <div class="price-item" onclick="buy(${i.id}, ${i.price})">
-                        <div>
-                            <div style="font-weight:bold; font-size:14px; color:#fff;">${i.name}</div>
-                            <div style="color:var(--grn); font-size:13px;">Rp ${i.price.toLocaleString('id-ID')}</div>
-                        </div>
-                        <div style="font-size:11px; color:#8b949e;">${i.available} stok</div>
-                    </div>
-                `).join('');
-            } else { container.innerHTML = '<div style="padding:40px; text-align:center;">Stok Kosong</div>'; }
-        } catch (e) {}
+        const res = await fetch(`${WORKER}/get-prices`);
+        const json = await res.json();
+        const container = document.getElementById('priceContainer');
+        if (json.success) {
+            container.innerHTML = json.data.map(i => `
+                <div class="price-item" onclick="buy(${i.id}, ${i.price})">
+                    <div><div style="font-weight:bold; color:#fff;">${i.name}</div><div style="color:var(--grn);">Rp ${i.price.toLocaleString('id-ID')}</div></div>
+                    <div style="font-size:11px; color:#8b949e;">${i.available} stok</div>
+                </div>`).join('');
+        }
     }
 
     async function buy(pid, price) {
         if(!confirm(`Beli nomor seharga Rp ${price}?`)) return;
-        try {
-            const res = await fetch(`${WORKER}/create-order`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ product_id: pid })
-            });
-            const json = await res.json();
-            if(json.success) {
-                const order = json.data.orders[0];
-                localStorage.setItem('x_p_' + order.id, order.phone_number);
-                localStorage.setItem('x_t_' + order.id, Date.now() + (20 * 60 * 1000));
-                pollActiveOrders();
-                updateBalance();
-            } else { alert(json.error.message); }
-        } catch (e) {}
+        const res = await fetch(`${WORKER}/create-order`, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ product_id: pid })
+        });
+        const json = await res.json();
+        if(json.success) { pollActiveOrders(); updateBalance(); }
     }
 
     async function pollActiveOrders() {
-        try {
-            const res = await fetch(`${WORKER}/get-active`);
-            const json = await res.json();
-            if(json.success) renderOrders(json.data);
-        } catch(e) {} 
+        const res = await fetch(`${WORKER}/get-active`);
+        const json = await res.json();
+        if(json.success) renderOrders(json.data);
     }
 
     function renderOrders(orders) {
@@ -122,27 +89,19 @@
         if (!orders || orders.length === 0) { container.innerHTML = ''; return; }
 
         container.innerHTML = orders.map(o => {
-            const savedPhone = localStorage.getItem('x_p_' + o.id);
-            const phone = o.phone || o.phone_number || savedPhone || 'Mencari...';
-            
-            // Simpan ke local jika detektif worker berhasil nemuin nomor dari web asli
-            if(o.phone && !savedPhone) localStorage.setItem('x_p_' + o.id, o.phone);
-            if(!localStorage.getItem('x_t_' + o.id)) localStorage.setItem('x_t_' + o.id, Date.now() + (20 * 60 * 1000));
-            
+            // Mengambil nomor dari field 'phone' yang sudah diisi oleh Detektif Worker
+            const phone = o.phone || 'Mencari Nomor...';
             const otp = o.otp_code || 'Waiting for OTP...';
-            const otpColor = o.otp_code ? 'var(--grn)' : '#8b949e';
             
             return `
             <div class="order-card anim">
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px;">
-                    <span style="color:var(--grn); font-weight:bold; font-family:monospace;">#${o.id}</span>
-                    <span class="timer" data-id="${o.id}" style="color:var(--blu); font-family:monospace; font-weight:bold;">--:--</span>
+                    <span style="color:var(--grn); font-weight:bold;">#${o.id}</span>
+                    <span style="color:var(--blu); font-weight:bold;">ACTIVE</span>
                 </div>
-                <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">KLIK NOMOR UNTUK SALIN:</div>
                 <div class="phone-box" onclick="copyText('${phone}')">${phone}</div>
-                <span class="copy-hint" id="hint-${phone}">Tap to copy</span>
                 <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">OTP:</div>
-                <div style="font-size:22px; font-weight:bold; color:${otpColor}; font-family:monospace; min-height:30px;">${otp}</div>
+                <div style="font-size:22px; font-weight:bold; color:${o.otp_code?'var(--grn)':'#8b949e'}; font-family:monospace;">${otp}</div>
                 <div class="btn-grid-4">
                     <button class="btn" onclick="act('finish', ${o.id})" ${o.otp_code?'':'disabled'}>Done</button>
                     <button class="btn" onclick="act('resend', ${o.id})">Resend</button>
@@ -153,45 +112,15 @@
         }).join('');
     }
 
-    function copyText(txt) {
-        navigator.clipboard.writeText(txt);
-        const hint = document.getElementById('hint-'+txt);
-        if(hint) {
-            hint.innerText = "Copied!";
-            hint.style.color = "var(--grn)";
-            setTimeout(() => { hint.innerText = "Tap to copy"; hint.style.color = "var(--blu)"; }, 2000);
-        }
-    }
-
-    function updateTimers() {
-        document.querySelectorAll('.timer').forEach(el => {
-            const id = el.dataset.id;
-            const end = localStorage.getItem('x_t_' + id);
-            if(end) {
-                const diff = Math.max(0, Math.floor((parseInt(end) - Date.now()) / 1000));
-                el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
-            }
-        });
-    }
+    function copyText(txt) { navigator.clipboard.writeText(txt); alert("Nomor disalin!"); }
 
     async function act(a, id) {
-        if(!confirm("Lanjutkan aksi?")) return;
-        try {
-            const res = await fetch(`${WORKER}/order-action`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ id: id, action: a })
-            });
-            const json = await res.json();
-            if(json.success) {
-                if(a !== 'resend') {
-                    localStorage.removeItem('x_p_' + id);
-                    localStorage.removeItem('x_t_' + id);
-                }
-                pollActiveOrders();
-                updateBalance();
-            } else { alert(json.error.message); }
-        } catch (e) {}
+        const res = await fetch(`${WORKER}/order-action`, {
+            method: "POST", headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({ id: id, action: a })
+        });
+        const json = await res.json();
+        if(json.success) { pollActiveOrders(); updateBalance(); }
     }
 
     init();
