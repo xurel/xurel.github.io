@@ -6,95 +6,111 @@
     <title>XUREl - Shopee Panel</title>
     <style>
         :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; }
-        body { font-family: sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { width: 100%; max-width: 400px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid var(--brd); }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
         .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; }
         .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); }
-        .price-item { display: flex; justify-content: space-between; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; }
+        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
         .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
+        .price-item:last-child { border-bottom: none; }
         .hidden { display: none; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--brd); border-radius: 8px; overflow: hidden; margin-top: 15px; }
-        .btn { background: var(--card); border: none; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--brd); border-radius: 8px; overflow: hidden; margin-top: 15px; border: 1px solid var(--brd); }
+        .btn { background: var(--card); border: none; padding: 12px; color: #8b949e; font-size: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
         .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn:not(:disabled):hover { background: #21262d; color: #fff; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h3 style="margin:0; color:var(--org);">› XUREl Shopee</h3>
+        <h3 style="margin:0; color:var(--org); font-size: 18px;">› XUREl Shopee</h3>
         <div style="text-align:right;">
-            <div style="font-size:10px; color:#8b949e;">BALANCE (IDR)</div>
+            <div style="font-size:10px; color:#8b949e; font-weight: bold; letter-spacing: 1px;">SALDO (IDR)</div>
             <div id="balDisplay" class="bal-val">Loading...</div>
         </div>
     </div>
 
     <div id="newOrder">
         <div id="priceContainer" class="price-list">
-            <div style="padding:40px; text-align:center;">Memuat Stok Shopee...</div>
+            <div style="padding:40px; text-align:center; color:#8b949e; font-size: 14px;">Memuat Stok Shopee...</div>
         </div>
     </div>
 
     <div id="activeOrder" class="hidden">
         <div style="background:var(--card); border:1px solid var(--brd); border-radius:12px; padding:20px;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
-                <span id="dispId" style="color:var(--blu); font-weight:bold;">#ORDER</span>
-                <span id="timer" style="color:var(--grn); font-family:monospace;">20:00</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px dashed var(--brd); padding-bottom: 10px;">
+                <span id="dispId" style="color:var(--blu); font-weight:bold; font-family: monospace;">#ORDER</span>
+                <span id="timer" style="color:var(--org); font-family:monospace; font-weight:bold;">20:00</span>
             </div>
-            <div style="font-size:11px; color:#8b949e;">NOMOR:</div>
-            <div id="dispPhone" style="font-size:20px; font-weight:bold; color:var(--blu); margin-bottom:15px;">-</div>
-            <div style="font-size:11px; color:#8b949e;">OTP:</div>
-            <div id="dispOtp" style="font-size:24px; font-weight:bold; color:var(--org);">Menunggu...</div>
+            
+            <div style="font-size:11px; color:#8b949e; margin-bottom: 4px;">NOMOR TELEPON:</div>
+            <div id="dispPhone" style="font-size:22px; font-weight:bold; color:var(--text); margin-bottom:20px; font-family: monospace; letter-spacing: 1px;">Sedang memproses...</div>
+            
+            <div style="font-size:11px; color:#8b949e; margin-bottom: 4px;">KODE OTP:</div>
+            <div id="dispOtp" style="font-size:28px; font-weight:bold; color:var(--org); font-family: monospace;">Menunggu...</div>
+            
             <div class="btn-grid">
-                <button class="btn" id="btnDone" disabled>✓ Done</button>
-                <button class="btn" id="btnCancel" disabled>✕ Cancel</button>
+                <button class="btn" id="btnDone" disabled>✓ Selesai</button>
+                <button class="btn" id="btnCancel" disabled>✕ Batal</button>
             </div>
         </div>
-        <button onclick="location.reload()" style="width:100%; padding:12px; margin-top:15px; background:none; border:1px solid var(--brd); color:#8b949e; border-radius:8px; cursor:pointer; font-weight:bold;">+ NEW ORDER</button>
+        <button onclick="location.reload()" style="width:100%; padding:14px; margin-top:15px; background:none; border:1px solid var(--brd); color:#8b949e; border-radius:8px; cursor:pointer; font-weight:bold; transition: 0.2s;">+ PESANAN BARU</button>
     </div>
 </div>
 
 <script>
+    // URL Worker Anda (Pastikan tidak ada garis miring '/' di akhir)
     const WORKER = "https://smscode.aam-zip.workers.dev";
     let orderId = null, waitTime = 120, poller, timer;
 
     async function init() {
         try {
+            // 1. Load Saldo
             const bRes = await fetch(`${WORKER}/get-balance`);
             const bJson = await bRes.json();
-            if(bJson.success) document.getElementById('balDisplay').innerText = `Rp ${bJson.data.balance.toLocaleString()}`;
+            if(bJson.success) {
+                document.getElementById('balDisplay').innerText = `Rp ${bJson.data.balance.toLocaleString('id-ID')}`;
+            }
 
+            // 2. Load Harga & Stok
             const pRes = await fetch(`${WORKER}/get-prices`);
             const pJson = await pRes.json();
             const container = document.getElementById('priceContainer');
             
-            if(pJson.success && pJson.data.length > 0) {
+            if (pJson.success && pJson.data.length > 0) {
                 container.innerHTML = pJson.data.map(i => `
                     <div class="price-item" onclick="buy(${i.id}, ${i.price})">
-                        <span>${i.name || 'Shopee ID'}</span>
-                        <span><b>Rp ${i.price.toLocaleString()}</b> <small style="margin-left:8px;">${i.available} avail</small></span>
+                        <div>
+                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${i.name || 'Shopee ID'}</div>
+                            <div style="color: var(--grn); font-weight: bold; font-family: monospace;">Rp ${i.price.toLocaleString('id-ID')}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="background: var(--brd); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: #8b949e;">${i.available} stok</span>
+                        </div>
                     </div>
                 `).join('');
+            } else if (!pJson.success && pJson.error) {
+                container.innerHTML = `<div style="padding:40px; text-align:center; color:var(--org);">${pJson.error.message || "Gagal memuat API"}</div>`;
             } else {
-                container.innerHTML = `<div style="padding:40px; text-align:center; color:red;">Stok Kosong / API Error</div>`;
+                container.innerHTML = `<div style="padding:40px; text-align:center; color:#8b949e;">Stok Shopee sedang kosong. Coba lagi nanti.</div>`;
             }
         } catch (e) { 
-            document.getElementById('priceContainer').innerHTML = `<div style="padding:40px; text-align:center; color:red;">Koneksi ke Worker Gagal</div>`;
+            document.getElementById('priceContainer').innerHTML = `<div style="padding:40px; text-align:center; color:#f85149;">Gagal terhubung ke Cloudflare Worker.</div>`;
         }
     }
 
     async function buy(pid, price) {
-        if(!confirm(`Beli nomor seharga Rp ${price.toLocaleString()}?`)) return;
+        if(!confirm(`Beli nomor ini seharga Rp ${price.toLocaleString('id-ID')}?`)) return;
         
         document.getElementById('newOrder').classList.add('hidden');
         document.getElementById('activeOrder').classList.remove('hidden');
-        document.getElementById('dispPhone').innerText = "Ordering...";
 
         try {
             const res = await fetch(`${WORKER}/create-order`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" }, // INI YANG SEBELUMNYA HILANG
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ product_id: pid })
             });
             const json = await res.json();
@@ -107,7 +123,7 @@
                 startTimers();
                 poller = setInterval(checkOtp, 5000);
             } else { 
-                alert("Gagal Memesan: " + (json.error?.message || json.error || "Sistem Sibuk")); 
+                alert("Gagal Memesan: " + (json.error?.message || "Saldo tidak cukup atau stok habis")); 
                 location.reload(); 
             }
         } catch (e) {
@@ -120,6 +136,7 @@
         try {
             const res = await fetch(`${WORKER}/get-active`);
             const json = await res.json();
+            
             if(json.success) {
                 const myOrder = json.data.find(o => o.id == orderId);
                 if(myOrder && myOrder.otp_code) {
@@ -130,7 +147,7 @@
                     clearInterval(poller);
                 }
             }
-        } catch(e) {}
+        } catch(e) {} // Abaikan error jaringan sementara saat polling
     }
 
     function startTimers() {
@@ -139,20 +156,25 @@
             if(waitTime <= 0) {
                 document.getElementById('btnCancel').disabled = false;
                 document.getElementById('btnCancel').style.color = "#f85149";
-                document.getElementById('btnCancel').innerText = "✕ Cancel";
+                document.getElementById('btnCancel').innerText = "✕ Batal";
                 clearInterval(timer);
             } else {
-                document.getElementById('btnCancel').innerText = `✕ Cancel (${waitTime}s)`;
+                document.getElementById('btnCancel').innerText = `✕ Batal (${waitTime}s)`;
             }
+            
+            // Format timer utama (20:00 ke bawah)
+            const minutes = Math.floor(waitTime / 60);
+            const seconds = waitTime % 60;
+            document.getElementById('timer').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
         }, 1000);
     }
 
-    // Fungsi Tombol Action
     document.getElementById('btnCancel').onclick = () => sendAction('cancel');
     document.getElementById('btnDone').onclick = () => sendAction('finish');
 
     async function sendAction(act) {
-        if(act === 'cancel' && !confirm("Batalkan pesanan ini? Saldo akan kembali.")) return;
+        if(act === 'cancel' && !confirm("Yakin ingin membatalkan pesanan ini? Saldo akan dikembalikan.")) return;
+        
         try {
             const res = await fetch(`${WORKER}/order-action`, {
                 method: "POST",
@@ -160,15 +182,19 @@
                 body: JSON.stringify({ id: orderId, action: act })
             });
             const json = await res.json();
+            
             if(json.success) {
-                alert(act === 'cancel' ? "Pesanan dibatalkan." : "Pesanan Selesai!");
+                alert(act === 'cancel' ? "Pesanan berhasil dibatalkan." : "Pesanan diselesaikan!");
                 location.reload();
             } else {
-                alert("Gagal: " + (json.error?.message || json.error));
+                alert("Aksi gagal: " + (json.error?.message || "Error tidak diketahui"));
             }
-        } catch (e) { alert("Error jaringan."); }
+        } catch (e) { 
+            alert("Error jaringan saat mengirim aksi."); 
+        }
     }
 
+    // Jalankan saat halaman dimuat
     init();
 </script>
 </body>
