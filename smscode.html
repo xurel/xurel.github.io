@@ -46,7 +46,7 @@
             </div>
             
             <div style="font-size:11px; color:#8b949e; margin-bottom: 4px;">NOMOR TELEPON:</div>
-            <div id="dispPhone" style="font-size:22px; font-weight:bold; color:var(--text); margin-bottom:20px; font-family: monospace; letter-spacing: 1px;">Sedang memproses...</div>
+            <div id="dispPhone" style="font-size:22px; font-weight:bold; color:var(--text); margin-bottom:20px; font-family: monospace; letter-spacing: 1px;">-</div>
             
             <div style="font-size:11px; color:#8b949e; margin-bottom: 4px;">KODE OTP:</div>
             <div id="dispOtp" style="font-size:28px; font-weight:bold; color:var(--org); font-family: monospace;">Menunggu...</div>
@@ -56,12 +56,11 @@
                 <button class="btn" id="btnCancel" disabled>✕ Batal</button>
             </div>
         </div>
-        <button onclick="location.reload()" style="width:100%; padding:14px; margin-top:15px; background:none; border:1px solid var(--brd); color:#8b949e; border-radius:8px; cursor:pointer; font-weight:bold; transition: 0.2s;">+ PESANAN BARU</button>
+        <button onclick="location.reload()" style="width:100%; padding:14px; margin-top:15px; background:none; border:1px solid var(--brd); color:#8b949e; border-radius:8px; cursor:pointer; font-weight:bold; transition: 0.2s;">+ KEMBALI / REFRESH</button>
     </div>
 </div>
 
 <script>
-    // URL Worker Anda (Pastikan tidak ada garis miring '/' di akhir)
     const WORKER = "https://smscode.aam-zip.workers.dev";
     let orderId = null, waitTime = 120, poller, timer;
 
@@ -74,7 +73,24 @@
                 document.getElementById('balDisplay').innerText = `Rp ${bJson.data.balance.toLocaleString('id-ID')}`;
             }
 
-            // 2. Load Harga & Stok
+            // 2. AUTO-RESUME: Cek pesanan yang masih menggantung
+            const actRes = await fetch(`${WORKER}/get-active`);
+            const actJson = await actRes.json();
+            
+            if (actJson.success && actJson.data.length > 0) {
+                // Jika ada pesanan, langsung munculkan
+                resumeOrder(actJson.data[0]);
+            } else {
+                // Jika tidak ada pesanan, panggil daftar 5 harga
+                loadPrices();
+            }
+        } catch (e) { 
+            document.getElementById('priceContainer').innerHTML = `<div style="padding:40px; text-align:center; color:#f85149;">Gagal terhubung ke Cloudflare Worker.</div>`;
+        }
+    }
+
+    async function loadPrices() {
+        try {
             const pRes = await fetch(`${WORKER}/get-prices`);
             const pJson = await pRes.json();
             const container = document.getElementById('priceContainer');
@@ -94,10 +110,10 @@
             } else if (!pJson.success && pJson.error) {
                 container.innerHTML = `<div style="padding:40px; text-align:center; color:var(--org);">${pJson.error.message || "Gagal memuat API"}</div>`;
             } else {
-                container.innerHTML = `<div style="padding:40px; text-align:center; color:#8b949e;">Stok Shopee sedang kosong. Coba lagi nanti.</div>`;
+                container.innerHTML = `<div style="padding:40px; text-align:center; color:#8b949e;">Stok Shopee sedang kosong.</div>`;
             }
-        } catch (e) { 
-            document.getElementById('priceContainer').innerHTML = `<div style="padding:40px; text-align:center; color:#f85149;">Gagal terhubung ke Cloudflare Worker.</div>`;
+        } catch (e) {
+            document.getElementById('priceContainer').innerHTML = `<div style="padding:40px; text-align:center; color:#f85149;">Gagal memuat harga.</div>`;
         }
     }
 
@@ -106,6 +122,7 @@
         
         document.getElementById('newOrder').classList.add('hidden');
         document.getElementById('activeOrder').classList.remove('hidden');
+        document.getElementById('dispPhone').innerText = "Memesan...";
 
         try {
             const res = await fetch(`${WORKER}/create-order`, {
@@ -116,12 +133,7 @@
             const json = await res.json();
             
             if(json.success) {
-                const order = json.data.orders[0];
-                orderId = order.id;
-                document.getElementById('dispId').innerText = "#" + order.id;
-                document.getElementById('dispPhone').innerText = order.phone_number;
-                startTimers();
-                poller = setInterval(checkOtp, 5000);
+                resumeOrder(json.data.orders[0]);
             } else { 
                 alert("Gagal Memesan: " + (json.error?.message || "Saldo tidak cukup atau stok habis")); 
                 location.reload(); 
@@ -129,6 +141,22 @@
         } catch (e) {
             alert("Terjadi kesalahan jaringan.");
             location.reload();
+        }
+    }
+
+    function resumeOrder(orderData) {
+        orderId = orderData.id;
+        document.getElementById('newOrder').classList.add('hidden');
+        document.getElementById('activeOrder').classList.remove('hidden');
+        
+        document.getElementById('dispId').innerText = "#" + orderData.id;
+        document.getElementById('dispPhone').innerText = orderData.phone_number;
+        
+        if (orderData.otp_code) {
+            showOtpSuccess(orderData.otp_code);
+        } else {
+            startTimers();
+            poller = setInterval(checkOtp, 5000);
         }
     }
 
@@ -140,14 +168,18 @@
             if(json.success) {
                 const myOrder = json.data.find(o => o.id == orderId);
                 if(myOrder && myOrder.otp_code) {
-                    document.getElementById('dispOtp').innerText = myOrder.otp_code;
-                    document.getElementById('dispOtp').style.color = "var(--grn)";
-                    document.getElementById('btnDone').disabled = false;
-                    document.getElementById('btnDone').style.color = "var(--grn)";
-                    clearInterval(poller);
+                    showOtpSuccess(myOrder.otp_code);
                 }
             }
-        } catch(e) {} // Abaikan error jaringan sementara saat polling
+        } catch(e) {} 
+    }
+
+    function showOtpSuccess(otpCode) {
+        document.getElementById('dispOtp').innerText = otpCode;
+        document.getElementById('dispOtp').style.color = "var(--grn)";
+        document.getElementById('btnDone').disabled = false;
+        document.getElementById('btnDone').style.color = "var(--grn)";
+        clearInterval(poller);
     }
 
     function startTimers() {
@@ -162,7 +194,6 @@
                 document.getElementById('btnCancel').innerText = `✕ Batal (${waitTime}s)`;
             }
             
-            // Format timer utama (20:00 ke bawah)
             const minutes = Math.floor(waitTime / 60);
             const seconds = waitTime % 60;
             document.getElementById('timer').innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
@@ -184,7 +215,6 @@
             const json = await res.json();
             
             if(json.success) {
-                alert(act === 'cancel' ? "Pesanan berhasil dibatalkan." : "Pesanan diselesaikan!");
                 location.reload();
             } else {
                 alert("Aksi gagal: " + (json.error?.message || "Error tidak diketahui"));
@@ -194,7 +224,6 @@
         }
     }
 
-    // Jalankan saat halaman dimuat
     init();
 </script>
 </body>
