@@ -5,38 +5,56 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>XUREl - Shopee Panel</title>
     <style>
-        :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; }
+        :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; --teal: #238636; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { width: 100%; max-width: 400px; }
+        
+        /* Animasi Smooth */
+        @keyframes fadeInSlide {
+            0% { opacity: 0; transform: translateY(15px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        .anim-slide { animation: fadeInSlide 0.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards; }
+        
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
-        .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; }
-        .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; }
-        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
-        .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
+        .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; transition: color 0.3s ease; }
+        
+        .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: all 0.2s ease-in-out; }
+        .price-item:hover { background: #21262d; border-left: 4px solid var(--org); padding-left: 19px; }
         .price-item:last-child { border-bottom: none; }
+        
+        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: all 0.3s ease; }
+        .order-card:hover { border-color: #484f58; }
+        
         .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--brd); border-radius: 8px; overflow: hidden; margin-top: 15px; border: 1px solid var(--brd); }
-        .btn { background: var(--card); border: none; padding: 12px; color: #8b949e; font-size: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.2s; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn { background: var(--card); border: none; padding: 12px; color: #8b949e; font-size: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: all 0.2s ease; }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .btn:not(:disabled):hover { background: #21262d; color: #fff; }
+        
         .section-title { font-size: 12px; color: #8b949e; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; }
+        .badge-active { background: rgba(35, 134, 54, 0.15); color: var(--grn); padding: 3px 8px; border-radius: 12px; font-size: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h3 style="margin:0; color:var(--org); font-size: 18px;">› XUREl Shopee</h3>
+        <h3 style="margin:0; color:var(--org); font-size: 18px; display:flex; align-items:center; gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            XUREl Shopee
+        </h3>
         <div style="text-align:right;">
             <div style="font-size:10px; color:#8b949e; font-weight: bold; letter-spacing: 1px;">SALDO (IDR)</div>
-            <div id="balDisplay" class="bal-val">Loading...</div>
+            <div id="balDisplay" class="bal-val">Memuat...</div>
         </div>
     </div>
 
     <div id="activeOrdersContainer"></div>
 
     <div class="section-title">PESAN NOMOR BARU</div>
-    <div class="price-list" id="priceContainer">
-        <div style="padding:40px; text-align:center; color:#8b949e; font-size: 14px;">Memuat Stok Shopee...</div>
+    <div class="price-list anim-slide" id="priceContainer">
+        <div style="padding:40px; text-align:center; color:#8b949e; font-size: 14px; opacity:0.7;">Sedang memuat stok Shopee...</div>
     </div>
 </div>
 
@@ -48,8 +66,10 @@
         updateBalance();
         loadPrices();
         pollActiveOrders();
-        // Polling setiap 5 detik untuk cek OTP & Pesanan
         poller = setInterval(pollActiveOrders, 5000);
+        
+        // Timer global yang berjalan setiap detik untuk mengupdate tampilan hitung mundur
+        setInterval(updateAllTimers, 1000);
     }
 
     async function updateBalance() {
@@ -72,11 +92,11 @@
                 container.innerHTML = pJson.data.map(i => `
                     <div class="price-item" onclick="buy(${i.id}, ${i.price})">
                         <div>
-                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 4px;">${i.name || 'Shopee ID'}</div>
-                            <div style="color: var(--grn); font-weight: bold; font-family: monospace;">Rp ${i.price.toLocaleString('id-ID')}</div>
+                            <div style="font-weight: bold; font-size: 14px; margin-bottom: 5px; color: #fff;">${i.name || 'Shopee ID'}</div>
+                            <div style="color: var(--grn); font-weight: bold; font-family: monospace; font-size: 13px;">Rp ${i.price.toLocaleString('id-ID')}</div>
                         </div>
                         <div style="text-align: right;">
-                            <span style="background: var(--brd); padding: 4px 8px; border-radius: 4px; font-size: 11px; color: #8b949e;">${i.available} stok</span>
+                            <span style="background: rgba(139, 148, 158, 0.15); padding: 5px 10px; border-radius: 6px; font-size: 11px; color: #8b949e; font-weight: bold;">${i.available} stok</span>
                         </div>
                     </div>
                 `).join('');
@@ -89,7 +109,7 @@
     }
 
     async function buy(pid, price) {
-        if(!confirm(`Beli nomor ini seharga Rp ${price.toLocaleString('id-ID')}?`)) return;
+        if(!confirm(`Pesan nomor ini seharga Rp ${price.toLocaleString('id-ID')}?`)) return;
         
         try {
             const res = await fetch(`${WORKER}/create-order`, {
@@ -100,8 +120,13 @@
             const json = await res.json();
             
             if(json.success) {
+                const orderData = json.data.orders[0];
+                // Simpan nomor dan waktu berakhir (20 menit dari sekarang) ke LocalStorage
+                localStorage.setItem('xurel_phone_' + orderData.id, orderData.phone_number);
+                localStorage.setItem('xurel_timer_' + orderData.id, Date.now() + (20 * 60 * 1000));
+                
                 updateBalance();
-                pollActiveOrders(); // Langsung munculkan pesanan di atas
+                pollActiveOrders(); 
             } else { 
                 alert("Gagal Memesan: " + (json.error?.message || "Saldo tidak cukup atau stok habis")); 
                 loadPrices();
@@ -130,25 +155,36 @@
             return;
         }
 
-        container.innerHTML = orders.map(o => {
-            // FIX UNDEFINED: Mencari 'phone', 'phone_number', atau 'number'
-            const phone = o.phone || o.phone_number || o.number || 'Memuat...';
-            const otp = o.otp_code || 'Menunggu...';
-            const otpColor = o.otp_code ? 'var(--grn)' : 'var(--org)';
+        // Jangan merender ulang seluruh HTML jika strukturnya tidak berubah untuk mencegah kedipan (flicker)
+        let htmlBuilder = '';
+        
+        orders.forEach(o => {
+            const savedPhone = localStorage.getItem('xurel_phone_' + o.id);
+            const phone = o.phone || o.phone_number || o.phoneNumber || o.number || savedPhone || 'Memuat...';
+            
+            // Setel Timer jika belum ada
+            if (!localStorage.getItem('xurel_timer_' + o.id)) {
+                localStorage.setItem('xurel_timer_' + o.id, Date.now() + (20 * 60 * 1000));
+            }
+            
+            const otp = o.otp_code || 'Waiting for OTP...';
+            const otpColor = o.otp_code ? 'var(--grn)' : '#8b949e';
             const btnState = o.otp_code ? '' : 'disabled';
             
-            return `
-            <div style="background:var(--card); border:1px solid var(--brd); border-radius:12px; padding:20px; margin-bottom:20px;">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px dashed var(--brd); padding-bottom: 10px;">
-                    <span style="color:var(--blu); font-weight:bold; font-family: monospace;">#${o.id}</span>
-                    <span style="color:var(--org); font-family:monospace; font-size:12px;">Aktif</span>
+            htmlBuilder += `
+            <div class="order-card anim-slide" id="order-${o.id}">
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom: 1px dashed var(--brd); padding-bottom: 15px; align-items:center;">
+                    <span style="color:var(--grn); font-weight:bold; font-family: monospace; font-size:15px; display:flex; align-items:center; gap:8px;">
+                        #${o.id} <span class="badge-active">ACTIVE</span>
+                    </span>
+                    <span class="countdown-timer" data-id="${o.id}" style="color:var(--blu); font-family:monospace; font-weight:bold; font-size:14px; letter-spacing:1px;">--:--</span>
                 </div>
                 
-                <div style="font-size:11px; color:#8b949e; margin-bottom: 4px;">NOMOR TELEPON:</div>
-                <div style="font-size:22px; font-weight:bold; color:var(--text); margin-bottom:20px; font-family: monospace; letter-spacing: 1px;">${phone}</div>
+                <div style="font-size:11px; color:#8b949e; margin-bottom: 6px; letter-spacing:1px;">PHONE</div>
+                <div style="font-size:24px; font-weight:bold; color:var(--text); margin-bottom:20px; font-family: monospace; letter-spacing: 2px;">${phone}</div>
                 
-                <div style="font-size:11px; color:#8b949e; margin-bottom: 4px;">KODE OTP:</div>
-                <div style="font-size:28px; font-weight:bold; color:${otpColor}; font-family: monospace;">${otp}</div>
+                <div style="font-size:11px; color:#8b949e; margin-bottom: 6px; letter-spacing:1px;">OTP</div>
+                <div style="font-size:22px; font-weight:bold; color:${otpColor}; font-family: monospace; min-height:30px; ${o.otp_code ? 'letter-spacing:4px;' : 'font-style:italic; font-size:18px;'}">${otp}</div>
                 
                 <div class="btn-grid">
                     <button class="btn" onclick="sendAction('finish', ${o.id})" ${btnState} style="${o.otp_code ? 'color:var(--grn)' : ''}">✓ Selesai</button>
@@ -156,11 +192,40 @@
                 </div>
             </div>
             `;
-        }).join('');
+        });
+        
+        // Update DOM hanya jika ada perubahan agar tidak berkedip
+        if (container.innerHTML !== htmlBuilder) {
+            container.innerHTML = htmlBuilder;
+        }
+    }
+
+    // Fungsi untuk mengupdate semua timer di layar secara bersamaan (sangat smooth)
+    function updateAllTimers() {
+        document.querySelectorAll('.countdown-timer').forEach(el => {
+            const id = el.getAttribute('data-id');
+            const endTimeStr = localStorage.getItem('xurel_timer_' + id);
+            
+            if (endTimeStr) {
+                const endTime = parseInt(endTimeStr);
+                const now = Date.now();
+                const diffSecs = Math.max(0, Math.floor((endTime - now) / 1000));
+                
+                const m = Math.floor(diffSecs / 60);
+                const s = diffSecs % 60;
+                
+                el.innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
+                
+                // Ubah warna menjadi merah jika waktu hampir habis (< 3 menit)
+                if (diffSecs < 180) {
+                    el.style.color = "var(--org)";
+                }
+            }
+        });
     }
 
     async function sendAction(act, id) {
-        if(act === 'cancel' && !confirm("Yakin ingin membatalkan pesanan ini?")) return;
+        if(act === 'cancel' && !confirm("Batalkan pesanan ini?")) return;
         
         try {
             const res = await fetch(`${WORKER}/order-action`, {
@@ -171,10 +236,15 @@
             const json = await res.json();
             
             if(json.success) {
+                localStorage.removeItem('xurel_phone_' + id);
+                localStorage.removeItem('xurel_timer_' + id);
+                
                 updateBalance();
+                // Paksa render ulang agar kartu yang dihapus langsung hilang
+                document.getElementById('activeOrdersContainer').innerHTML = ''; 
                 pollActiveOrders();
             } else {
-                alert("Gagal: " + (json.error?.message || "Belum bisa membatalkan pesanan (Tunggu 2 menit dari awal pesan)"));
+                alert("Gagal: Belum bisa dibatalkan. Tunggu minimal 2 menit setelah pemesanan.");
             }
         } catch (e) { 
             alert("Error jaringan saat mengirim aksi."); 
