@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XUREl - smscode Dashboard</title>
+    <style>
+        :root { --main-bg: #0d1117; --card-bg: #161b22; --border: #30363d; --text-gray: #8b949e; --accent: #2ea043; --orange: #ee4d2d; }
+        body { font-family: sans-serif; background: var(--main-bg); color: #fff; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 420px; }
+        h3 { display: flex; align-items: center; font-size: 18px; margin-bottom: 20px; }
+        h3::before { content: '›'; color: var(--orange); font-size: 24px; margin-right: 10px; font-weight: bold; }
+
+        /* Style Active Orders Card */
+        .order-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 15px; margin-bottom: 30px; position: relative; }
+        .order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .order-id { color: #58a6ff; font-weight: bold; font-family: monospace; }
+        .status-badge { background: rgba(63, 185, 80, 0.15); color: #3fb950; font-size: 10px; padding: 2px 8px; border-radius: 4px; border: 1px solid rgba(63,185,80,0.3); font-weight: bold; }
+        .timer { color: #3fb950; font-family: monospace; font-size: 14px; }
+        
+        .info-row { margin: 10px 0; font-size: 14px; display: flex; gap: 15px; }
+        .info-label { color: var(--text-gray); width: 60px; text-transform: uppercase; font-size: 11px; }
+        .info-value { font-weight: bold; font-family: monospace; letter-spacing: 1px; }
+
+        /* Action Buttons Grid - Match with Screenshot */
+        .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border-radius: 8px; overflow: hidden; margin-top: 15px; border: 1px solid var(--border); }
+        .action-btn { background: var(--card-bg); border: none; padding: 12px; color: var(--text-gray); font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: 0.2s; text-transform: uppercase; }
+        .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .action-btn:not(:disabled):hover { background: #21262d; color: #fff; }
+        .action-btn.active-green { color: #3fb950; }
+
+        /* Price List (New Order section) */
+        .price-list { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+        .price-item { display: flex; justify-content: space-between; padding: 15px; background: var(--card-bg); border-bottom: 1px solid var(--border); cursor: pointer; }
+        .price-item:hover { background: #21262d; }
+        .price-item b { color: #3fb950; }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="newOrderView">
+        <h3>New Order (Shopee ID)</h3>
+        <div id="priceContainer" class="price-list">
+            <div style="padding:20px; text-align:center; font-size:12px; color:var(--text-gray);">Loading Prices...</div>
+        </div>
+    </div>
+
+    <div id="activeOrderView" class="hidden">
+        <h3>Active Orders <span style="background:var(--orange); color:white; font-size:10px; border-radius:50%; padding:2px 6px; margin-left:5px;">1</span></h3>
+        <div class="order-card">
+            <div class="order-header">
+                <div><span class="order-id" id="dispId">#75909</span> <span class="status-badge">ACTIVE</span></div>
+                <div class="timer" id="timer">19:56</div>
+            </div>
+
+            <div class="info-row">
+                <span class="info-label">Phone</span>
+                <span class="info-value" id="dispPhone">6285839085997</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">OTP</span>
+                <span class="info-value" id="dispOtp" style="color:var(--text-gray); font-style: italic;">Waiting for OTP...</span>
+            </div>
+
+            <div class="action-grid">
+                <button class="action-btn" id="btnDone" disabled>✓ Done</button>
+                <button class="action-btn" id="btnResend" disabled>↺ Resend</button>
+                <button class="action-btn" id="btnCancel" disabled>✕ Cancel</button>
+                <button class="action-btn" id="btnReplace" disabled>⇄ Replace</button>
+            </div>
+        </div>
+        <button onclick="location.reload()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border); background:none; color:var(--text-gray); font-weight:bold; cursor:pointer;">+ NEW ORDER</button>
+    </div>
+</div>
+
+<script>
+    const WORKER = "https://smscode.aam-zip.workers.dev";
+    let orderId = null, waitTime = 120, timeLeft = 1200;
+
+    async function loadPrices() {
+        const res = await fetch(`${WORKER}/get-prices`);
+        const data = await res.json();
+        document.getElementById('priceContainer').innerHTML = data.map(i => `
+            <div class="price-item" onclick="buy('${i.usd}')">
+                <span>Shopee ID</span>
+                <span><b>Rp ${i.idr}</b> <small style="color:var(--text-gray); margin-left:10px;">${i.count} avail</small></span>
+            </div>
+        `).join('');
+    }
+    loadPrices();
+
+    async function buy(usd) {
+        document.getElementById('newOrderView').classList.add('hidden');
+        document.getElementById('activeOrderView').classList.remove('hidden');
+        const res = await fetch(`${WORKER}/get-number?usd=${usd}`);
+        const text = await res.text();
+        if(text.includes("ACCESS_NUMBER")) {
+            const [_, id, phone] = text.split(':');
+            orderId = id;
+            document.getElementById('dispId').innerText = "#"+id;
+            document.getElementById('dispPhone').innerText = phone;
+            startTimers();
+            startPolling();
+        } else { alert(text); location.reload(); }
+    }
+
+    function startTimers() {
+        const t = setInterval(() => {
+            timeLeft--; waitTime--;
+            let m = Math.floor(timeLeft/60), s = timeLeft%60;
+            document.getElementById('timer').innerText = `${m}:${s<10?'0'+s:s}`;
+            
+            if(waitTime <= 0) {
+                document.getElementById('btnCancel').disabled = false;
+                document.getElementById('btnReplace').disabled = false;
+                document.getElementById('btnCancel').style.color = "#f85149"; // Red highlight
+            } else {
+                document.getElementById('btnCancel').innerText = `✕ Cancel (${waitTime}s)`;
+            }
+            if(timeLeft <= 0) clearInterval(t);
+        }, 1000);
+    }
+
+    function startPolling() {
+        const p = setInterval(async () => {
+            const res = await fetch(`${WORKER}/get-status?id=${orderId}`);
+            const text = await res.text();
+            if(text.includes("STATUS_OK")) {
+                document.getElementById('dispOtp').innerText = text.split(':')[1];
+                document.getElementById('dispOtp').style.color = "#3fb950";
+                document.getElementById('dispOtp').style.fontStyle = "normal";
+                document.getElementById('btnDone').disabled = false;
+                document.getElementById('btnDone').classList.add('active-green');
+                clearInterval(p);
+            }
+        }, 5000);
+    }
+
+    // Event Handlers for Status
+    document.getElementById('btnCancel').onclick = async () => { if(confirm("Cancel order?")) { await fetch(`${WORKER}/set-status?id=${orderId}&status=8`); location.reload(); }};
+    document.getElementById('btnDone').onclick = async () => { await fetch(`${WORKER}/set-status?id=${orderId}&status=6`); location.reload(); };
+    document.getElementById('btnReplace').onclick = async () => { if(confirm("Replace number?")) { await fetch(`${WORKER}/set-status?id=${orderId}&status=1`); location.reload(); }};
+</script>
+</body>
+</html>
