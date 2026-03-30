@@ -3,21 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>XUREl - Shopee Panel</title>
+    <title>XUREl - Home</title>
     <style>
         :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; }
-        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
-        .container { width: 100%; max-width: 400px; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
-        .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; }
-        .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; }
+        
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 0; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; }
+        
+        /* 3. KOTAK UTAMA (CONTAINER) PREMIUM */
+        .container { 
+            width: 90%; max-width: 420px; background: var(--card); border: 1px solid var(--brd); border-radius: 16px; padding: 25px; margin-top: 30px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transition: all 0.3s ease; animation: slideInPage 0.5s ease; 
+        }
+        @keyframes slideInPage { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
+        
+        /* 1. TOMBOL HOME (JUDUL) */
+        .home-btn { text-decoration: none; color: #fff; font-size: 18px; font-weight: bold; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: 0.2s; }
+        .home-btn:hover { color: var(--org); }
+        .home-btn svg { transition: 0.2s; }
+        .home-btn:hover svg { transform: scale(1.1); stroke: var(--org); }
+
+        /* 2. ANGKA SALDO SAJA */
+        .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 19px; letter-spacing: 0.5px; }
+        
+        /* Penyesuaian Komponen Internal agar selaras di dalam Kotak Utama */
+        .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--bg); margin-bottom: 20px; }
         .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
-        .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
+        .price-item:hover { background: #21262d; border-left: 4px solid var(--org); padding-left: 19px; }
+        .price-item:last-child { border-bottom: none; }
         
-        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: slideIn 0.4s ease; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .order-card { background: var(--bg); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         
-        /* Animasi Garis Loading OTP */
+        /* Animasi Garis Loading OTP (Tetap Smooth) */
         .loader-bars { display: flex; align-items: center; gap: 4px; height: 20px; padding-left: 2px; }
         .loader-bars span { display: block; width: 4px; height: 100%; background-color: #8b949e; border-radius: 2px; animation: bounceBar 1.2s infinite ease-in-out; }
         .loader-bars span:nth-child(1) { animation-delay: -0.24s; }
@@ -25,31 +42,34 @@
         .loader-bars span:nth-child(3) { animation-delay: 0s; }
         @keyframes bounceBar { 0%, 40%, 100% { transform: scaleY(0.4); opacity: 0.5; } 20% { transform: scaleY(1); opacity: 1; background-color: var(--blu); } }
         
-        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; padding: 8px; border-radius: 6px; }
-        .phone-box:active { background: var(--brd); }
+        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; padding: 8px; border-radius: 6px; transition: 0.2s; }
+        .phone-box:active { background: var(--brd); color: var(--blu); }
         
         .btn-grid-4 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-        .btn { flex: 1 1 calc(50% - 8px); background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; text-align: center; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; } /* Efek transparan saat tombol redup */
-        .btn:not(:disabled):hover { background: #21262d; color: #fff; }
+        .btn { flex: 1 1 calc(50% - 8px); background: var(--card); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; text-align: center; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn:not(:disabled):hover { background: #21262d; color: #fff; border-color: #8b949e; }
         
-        .status-badge { background: rgba(88, 166, 255, 0.1); color: var(--blu); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
+        .section-title { font-size: 12px; color: #8b949e; margin-bottom: 12px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; padding-left: 2px; }
+        .status-badge { background: rgba(88, 166, 255, 0.1); color: var(--blu); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header">
-        <h3 style="margin:0; color:var(--org); font-size: 18px;">› XUREl Shopee</h3>
+        <a href="#" class="home-btn" onclick="location.reload(); return false;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            XUREl Panel
+        </a>
         <div style="text-align:right;">
-            <div style="font-size:10px; color:#8b949e; font-weight: bold;">SALDO (IDR)</div>
-            <div id="balDisplay" class="bal-val">...</div>
+            <div id="balDisplay" class="bal-val">Memuat...</div>
         </div>
     </div>
 
     <div id="activeOrdersContainer"></div>
 
-    <div style="font-size: 12px; color: #8b949e; margin-bottom: 10px; font-weight: bold;">PESAN NOMOR BARU</div>
+    <div class="section-title">PESAN NOMOR BARU</div>
     <div class="price-list" id="priceContainer">
         <div style="padding:40px; text-align:center; color:#8b949e;">Memuat stok Shopee...</div>
     </div>
@@ -70,6 +90,7 @@
         try {
             const res = await fetch(`${WORKER}/get-balance`);
             const json = await res.json();
+            // Tampilan angka saldo saja, format IDR
             if(json.success) document.getElementById('balDisplay').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`;
         } catch(e) {}
     }
@@ -83,13 +104,15 @@
                 container.innerHTML = json.data.map(i => `
                     <div class="price-item" onclick="buy(${i.id}, ${i.price})">
                         <div>
-                            <div style="font-weight:bold; font-size:14px; color:#fff;">${i.name}</div>
-                            <div style="color:var(--grn); font-size:13px;">Rp ${i.price.toLocaleString('id-ID')}</div>
+                            <div style="font-weight:bold; font-size:14px; color:#fff; margin-bottom:2px;">${i.name}</div>
+                            <div style="color:var(--grn); font-size:13px; font-weight:bold; font-family:monospace;">Rp ${i.price.toLocaleString('id-ID')}</div>
                         </div>
-                        <div style="font-size:11px; color:#8b949e;">${i.available} stok</div>
+                        <div style="text-align:right;">
+                            <span style="background: rgba(139, 148, 158, 0.1); padding: 4px 8px; border-radius: 6px; font-size: 11px; color: #8b949e; font-weight: bold;">${i.available} stok</span>
+                        </div>
                     </div>`).join('');
-            }
-        } catch (e) {}
+            } else { container.innerHTML = '<div style="padding:40px; text-align:center; color:#8b949e;">Stok Kosong</div>'; }
+        } catch (e) { document.getElementById('priceContainer').innerHTML = '<div style="padding:40px; text-align:center; color:var(--org);">Gagal Memuat Stok</div>'; }
     }
 
     async function buy(pid, price) {
@@ -118,14 +141,19 @@
         } catch(e) {} 
     }
 
+    // FUNGSI INI TETAP SAMA (TARGETED UPDATE TANPA BERKEDIP)
     function renderOrders(orders) {
         const container = document.getElementById('activeOrdersContainer');
-        if (!orders || orders.length === 0) { container.innerHTML = ''; return; }
+        const activeIds = orders ? orders.map(o => 'order-' + o.id) : [];
+        Array.from(container.children).forEach(child => {
+            if (!activeIds.includes(child.id)) child.remove();
+        });
 
-        container.innerHTML = orders.map(o => {
+        if (!orders || orders.length === 0) return;
+
+        orders.forEach(o => {
             const savedPhone = localStorage.getItem('phone_' + o.id);
             const phone = o.phone || savedPhone || 'Mencari Nomor...';
-            
             if(o.phone && !savedPhone) localStorage.setItem('phone_' + o.id, o.phone);
             
             if(!localStorage.getItem('timer_' + o.id)) {
@@ -139,41 +167,62 @@
                 if (remaining <= 1080) passed2Mins = true;
             }
 
-            // Animasi Garis atau Tampilan Kode OTP
-            let otpDisplay = '';
-            if (o.otp_code) {
-                otpDisplay = `<div style="font-size:24px; font-weight:bold; color:var(--grn); font-family:monospace; letter-spacing:2px;">${o.otp_code}</div>`;
+            let otpDisplay = o.otp_code 
+                ? `<div style="font-size:26px; font-weight:bold; color:var(--grn); font-family:monospace; letter-spacing:4px; animation: slideInPage 0.3s ease;">${o.otp_code}</div>` 
+                : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
+            
+            const existingCard = document.getElementById('order-' + o.id);
+            
+            if (existingCard) {
+                // Update targeted tanpa flicker
+                const phoneBox = existingCard.querySelector('.phone-box');
+                if (phoneBox.innerText !== phone && phone !== 'Mencari Nomor...') {
+                    phoneBox.innerText = phone;
+                    phoneBox.setAttribute('onclick', `copyText('${phone}', this)`);
+                }
+                const otpContainer = existingCard.querySelector('.otp-container');
+                if (otpContainer.innerHTML.trim() !== otpDisplay.trim()) {
+                    otpContainer.innerHTML = otpDisplay;
+                }
+                if (o.otp_code) {
+                    const btnDone = existingCard.querySelector('.btn-done');
+                    if(btnDone && btnDone.disabled) {
+                        btnDone.disabled = false;
+                        btnDone.style.color = "var(--grn)";
+                        btnDone.style.borderColor = "var(--grn)";
+                    }
+                    const btnResend = existingCard.querySelector('.btn-resend');
+                    if(btnResend && btnResend.disabled) btnResend.disabled = false;
+                }
+                
             } else {
-                otpDisplay = `
-                <div class="loader-bars">
-                    <span></span><span></span><span></span>
+                // Buat kartu baru jika belum ada
+                const resendState = o.otp_code ? '' : 'disabled';
+                const cancelReplaceState = passed2Mins ? '' : 'disabled';
+                
+                const cardHTML = `
+                <div class="order-card" id="order-${o.id}" style="animation: slideInPage 0.4s ease;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px; align-items:center;">
+                        <span style="color:var(--grn); font-weight:bold; font-family:monospace; font-size:14px;">#${o.id} <span class="status-badge">ACTIVE</span></span>
+                        <span class="timer-display" data-id="${o.id}" style="color:var(--blu); font-weight:bold; font-family:monospace; font-size:14px; letter-spacing:0.5px;">--:--</span>
+                    </div>
+                    <div style="font-size:11px; color:#8b949e; margin-bottom:5px; letter-spacing:0.5px;">TAP UNTUK SALIN:</div>
+                    <div class="phone-box" onclick="copyText('${phone}', this)">${phone}</div>
+                    <div style="font-size:11px; color:#8b949e; margin-bottom:5px; letter-spacing:0.5px;">OTP:</div>
+                    <div class="otp-container" style="min-height:35px; display:flex; align-items:center;">
+                        ${otpDisplay}
+                    </div>
+                    <div class="btn-grid-4">
+                        <button class="btn btn-done" onclick="act('finish', ${o.id})" ${o.otp_code?'style="color:var(--grn); border-color:var(--grn);"':'disabled'}>✓ DONE</button>
+                        <button class="btn btn-resend" id="btn-resend-${o.id}" onclick="act('resend', ${o.id})" ${resendState}>↻ RESEND</button>
+                        <button class="btn btn-cancel" id="btn-cancel-${o.id}" onclick="act('cancel', ${o.id})" ${cancelReplaceState}>✕ CANCEL</button>
+                        <button class="btn btn-replace" id="btn-replace-${o.id}" onclick="act('replace', ${o.id})" ${cancelReplaceState}>⇄ REPLACE</button>
+                    </div>
                 </div>`;
+                
+                container.insertAdjacentHTML('afterbegin', cardHTML); // Pesanan baru muncul di atas
             }
-            
-            // Logika disabled (meredupkan tombol alih-alih menyembunyikannya)
-            const resendState = o.otp_code ? '' : 'disabled';
-            const cancelReplaceState = passed2Mins ? '' : 'disabled';
-            
-            return `
-            <div class="order-card">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px; align-items:center;">
-                    <span style="color:var(--grn); font-weight:bold; font-family:monospace;">#${o.id} <span class="status-badge">ACTIVE</span></span>
-                    <span class="timer-display" data-id="${o.id}" style="color:var(--blu); font-weight:bold; font-family:monospace; font-size:14px;">--:--</span>
-                </div>
-                <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">KLIK UNTUK SALIN:</div>
-                <div class="phone-box" onclick="copyText('${phone}', this)">${phone}</div>
-                <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">OTP:</div>
-                <div style="min-height:35px; display:flex; align-items:center;">
-                    ${otpDisplay}
-                </div>
-                <div class="btn-grid-4">
-                    <button class="btn" onclick="act('finish', ${o.id})" ${o.otp_code?'style="color:var(--grn); border-color:var(--grn);"':'disabled'}>✓ DONE</button>
-                    <button class="btn" id="btn-resend-${o.id}" onclick="act('resend', ${o.id})" ${resendState}>↻ RESEND</button>
-                    <button class="btn" id="btn-cancel-${o.id}" onclick="act('cancel', ${o.id})" ${cancelReplaceState}>✕ CANCEL</button>
-                    <button class="btn" id="btn-replace-${o.id}" onclick="act('replace', ${o.id})" ${cancelReplaceState}>⇄ REPLACE</button>
-                </div>
-            </div>`;
-        }).join('');
+        });
     }
 
     // Fungsi Timer Sekaligus Mengaktifkan Tombol
@@ -183,18 +232,16 @@
             const endTime = localStorage.getItem('timer_' + id);
             if(endTime) {
                 const diffSecs = Math.max(0, Math.floor((parseInt(endTime) - Date.now()) / 1000));
-                const m = Math.floor(diffSecs / 60);
-                const s = diffSecs % 60;
-                el.innerText = `${m}:${s.toString().padStart(2, '0')}`;
+                el.innerText = `${Math.floor(diffSecs/60)}:${(diffSecs%60).toString().padStart(2, '0')}`;
                 
-                if (diffSecs < 180) el.style.color = "var(--org)";
+                if (diffSecs < 180) el.style.color = "var(--org)"; // Jadi merah kalau < 3 mnt
                 
-                // MENGHIDUPKAN TOMBOL: Jika sisa waktu <= 18:00 (lewat 2 menit), hapus status disabled
+                // MENGHIDUPKAN TOMBOL jika sisa waktu <= 18:00 (lewat 2 menit)
                 if (diffSecs <= 1080) {
                     const btnCancel = document.getElementById('btn-cancel-' + id);
                     const btnReplace = document.getElementById('btn-replace-' + id);
-                    if(btnCancel) btnCancel.disabled = false;
-                    if(btnReplace) btnReplace.disabled = false;
+                    if(btnCancel && btnCancel.disabled) btnCancel.disabled = false;
+                    if(btnReplace && btnReplace.disabled) btnReplace.disabled = false;
                 }
             }
         });
@@ -230,15 +277,10 @@
                     localStorage.removeItem('phone_' + id);
                     localStorage.removeItem('timer_' + id);
                 }
-                document.getElementById('activeOrdersContainer').innerHTML = '';
-                pollActiveOrders();
+                pollActiveOrders(); // Update UI segera
                 updateBalance();
-            } else { 
-                alert("Gagal: " + (json.error?.message || json.error || "Aksi ditolak server.")); 
-            }
-        } catch (e) {
-            alert("Terjadi kesalahan jaringan.");
-        }
+            } else { alert("Gagal: " + (json.error?.message || json.error || "Aksi ditolak server.")); }
+        } catch (e) { alert("Kesalahan jaringan."); }
     }
 
     init();
