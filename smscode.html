@@ -6,22 +6,22 @@
     <title>XUREl - Shopee Panel</title>
     <style>
         :root { --bg: #0d1117; --card: #161b22; --brd: #30363d; --text: #c9d1d9; --org: #ee4d2d; --grn: #3fb950; --blu: #58a6ff; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 20px; display: flex; justify-content: center; margin: 0; }
         .container { width: 100%; max-width: 400px; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .anim { animation: fadeIn 0.4s ease forwards; }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
         .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 18px; }
         .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; }
-        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; }
+        .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
         .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
-        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; }
+        .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: slideIn 0.4s ease; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; padding: 8px; border-radius: 6px; }
+        .phone-box:active { background: var(--brd); }
         .btn-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
         .btn { background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; }
-        .btn:disabled { opacity: 0.3; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .btn:not(:disabled):hover { background: #21262d; color: #fff; }
-        .section-title { font-size: 12px; color: #8b949e; margin-bottom: 10px; font-weight: bold; letter-spacing: 1px; }
+        .status-badge { background: rgba(88, 166, 255, 0.1); color: var(--blu); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -34,9 +34,13 @@
             <div id="balDisplay" class="bal-val">...</div>
         </div>
     </div>
+
     <div id="activeOrdersContainer"></div>
-    <div class="section-title">PESAN NOMOR BARU</div>
-    <div class="price-list" id="priceContainer"><div style="padding:40px; text-align:center; color:#8b949e;">Memuat...</div></div>
+
+    <div style="font-size: 12px; color: #8b949e; margin-bottom: 10px; font-weight: bold;">PESAN NOMOR BARU</div>
+    <div class="price-list" id="priceContainer">
+        <div style="padding:40px; text-align:center; color:#8b949e;">Memuat stok Shopee...</div>
+    </div>
 </div>
 
 <script>
@@ -50,38 +54,54 @@
     }
 
     async function updateBalance() {
-        const res = await fetch(`${WORKER}/get-balance`);
-        const json = await res.json();
-        if(json.success) document.getElementById('balDisplay').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`;
+        try {
+            const res = await fetch(`${WORKER}/get-balance`);
+            const json = await res.json();
+            if(json.success) document.getElementById('balDisplay').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`;
+        } catch(e) {}
     }
 
     async function loadPrices() {
-        const res = await fetch(`${WORKER}/get-prices`);
-        const json = await res.json();
-        const container = document.getElementById('priceContainer');
-        if (json.success) {
-            container.innerHTML = json.data.map(i => `
-                <div class="price-item" onclick="buy(${i.id}, ${i.price})">
-                    <div><div style="font-weight:bold; color:#fff;">${i.name}</div><div style="color:var(--grn);">Rp ${i.price.toLocaleString('id-ID')}</div></div>
-                    <div style="font-size:11px; color:#8b949e;">${i.available} stok</div>
-                </div>`).join('');
-        }
+        try {
+            const res = await fetch(`${WORKER}/get-prices`);
+            const json = await res.json();
+            const container = document.getElementById('priceContainer');
+            if (json.success && json.data.length > 0) {
+                container.innerHTML = json.data.map(i => `
+                    <div class="price-item" onclick="buy(${i.id}, ${i.price})">
+                        <div>
+                            <div style="font-weight:bold; font-size:14px; color:#fff;">${i.name}</div>
+                            <div style="color:var(--grn); font-size:13px;">Rp ${i.price.toLocaleString('id-ID')}</div>
+                        </div>
+                        <div style="font-size:11px; color:#8b949e;">${i.available} stok</div>
+                    </div>`).join('');
+            }
+        } catch (e) {}
     }
 
     async function buy(pid, price) {
-        if(!confirm(`Beli nomor seharga Rp ${price}?`)) return;
-        const res = await fetch(`${WORKER}/create-order`, {
-            method: "POST", headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ product_id: pid })
-        });
-        const json = await res.json();
-        if(json.success) { pollActiveOrders(); updateBalance(); }
+        if(!confirm(`Beli nomor seharga Rp ${price.toLocaleString('id-ID')}?`)) return;
+        try {
+            const res = await fetch(`${WORKER}/create-order`, {
+                method: "POST", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ product_id: pid })
+            });
+            const json = await res.json();
+            if(json.success) {
+                const order = json.data.orders[0];
+                localStorage.setItem('phone_' + order.id, order.phone_number);
+                pollActiveOrders();
+                updateBalance();
+            } else { alert(json.error.message); }
+        } catch (e) {}
     }
 
     async function pollActiveOrders() {
-        const res = await fetch(`${WORKER}/get-active`);
-        const json = await res.json();
-        if(json.success) renderOrders(json.data);
+        try {
+            const res = await fetch(`${WORKER}/get-active`);
+            const json = await res.json();
+            if(json.success) renderOrders(json.data);
+        } catch(e) {} 
     }
 
     function renderOrders(orders) {
@@ -89,19 +109,26 @@
         if (!orders || orders.length === 0) { container.innerHTML = ''; return; }
 
         container.innerHTML = orders.map(o => {
-            // Mengambil nomor dari field 'phone' yang sudah diisi oleh Detektif Worker
-            const phone = o.phone || 'Mencari Nomor...';
+            // Logika Sinkronisasi: Cek Local Storage dulu, kalau kosong pakai kiriman Detektif Worker
+            const savedPhone = localStorage.getItem('phone_' + o.id);
+            const phone = o.phone || savedPhone || 'Mencari Nomor...';
+            
+            // Jika Worker berhasil nemuin nomor yang hilang, simpan permanen di perangkat ini
+            if(o.phone && !savedPhone) localStorage.setItem('phone_' + o.id, o.phone);
+            
             const otp = o.otp_code || 'Waiting for OTP...';
+            const otpColor = o.otp_code ? 'var(--grn)' : '#8b949e';
             
             return `
-            <div class="order-card anim">
+            <div class="order-card">
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px;">
-                    <span style="color:var(--grn); font-weight:bold;">#${o.id}</span>
-                    <span style="color:var(--blu); font-weight:bold;">ACTIVE</span>
+                    <span style="color:var(--grn); font-weight:bold; font-family:monospace;">#${o.id}</span>
+                    <span class="status-badge">ACTIVE</span>
                 </div>
-                <div class="phone-box" onclick="copyText('${phone}')">${phone}</div>
+                <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">KLIK UNTUK SALIN:</div>
+                <div class="phone-box" onclick="copyText('${phone}', this)">${phone}</div>
                 <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">OTP:</div>
-                <div style="font-size:22px; font-weight:bold; color:${o.otp_code?'var(--grn)':'#8b949e'}; font-family:monospace;">${otp}</div>
+                <div style="font-size:22px; font-weight:bold; color:${otpColor}; font-family:monospace; min-height:30px;">${otp}</div>
                 <div class="btn-grid-4">
                     <button class="btn" onclick="act('finish', ${o.id})" ${o.otp_code?'':'disabled'}>Done</button>
                     <button class="btn" onclick="act('resend', ${o.id})">Resend</button>
@@ -112,15 +139,28 @@
         }).join('');
     }
 
-    function copyText(txt) { navigator.clipboard.writeText(txt); alert("Nomor disalin!"); }
+    function copyText(txt, el) {
+        if(txt.includes('Mencari')) return;
+        navigator.clipboard.writeText(txt);
+        const oldText = el.innerText;
+        el.innerText = "COPIED!";
+        el.style.color = "var(--grn)";
+        setTimeout(() => { el.innerText = oldText; el.style.color = "var(--text)"; }, 1500);
+    }
 
     async function act(a, id) {
-        const res = await fetch(`${WORKER}/order-action`, {
-            method: "POST", headers: {"Content-Type": "application/json"},
-            body: JSON.stringify({ id: id, action: a })
-        });
-        const json = await res.json();
-        if(json.success) { pollActiveOrders(); updateBalance(); }
+        try {
+            const res = await fetch(`${WORKER}/order-action`, {
+                method: "POST", headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({ id: id, action: a })
+            });
+            const json = await res.json();
+            if(json.success) {
+                if(a !== 'resend') localStorage.removeItem('phone_' + id);
+                pollActiveOrders();
+                updateBalance();
+            } else { alert(json.error.message); }
+        } catch (e) {}
     }
 
     init();
