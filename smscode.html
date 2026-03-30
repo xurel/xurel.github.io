@@ -13,14 +13,26 @@
         .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--card); margin-bottom: 20px; }
         .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
         .price-item:hover { background: #21262d; border-left: 4px solid var(--org); }
+        
         .order-card { background: var(--card); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; animation: slideIn 0.4s ease; }
         @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Animasi Garis Loading OTP */
+        .loader-bars { display: flex; align-items: center; gap: 4px; height: 20px; padding-left: 2px; }
+        .loader-bars span { display: block; width: 4px; height: 100%; background-color: #8b949e; border-radius: 2px; animation: bounceBar 1.2s infinite ease-in-out; }
+        .loader-bars span:nth-child(1) { animation-delay: -0.24s; }
+        .loader-bars span:nth-child(2) { animation-delay: -0.12s; }
+        .loader-bars span:nth-child(3) { animation-delay: 0s; }
+        @keyframes bounceBar { 0%, 40%, 100% { transform: scaleY(0.4); opacity: 0.5; } 20% { transform: scaleY(1); opacity: 1; background-color: var(--blu); } }
+        
         .phone-box { font-size: 24px; font-weight: bold; color: var(--text); margin-bottom: 20px; font-family: monospace; letter-spacing: 2px; cursor: pointer; padding: 8px; border-radius: 6px; }
         .phone-box:active { background: var(--brd); }
-        .btn-grid-4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 20px; }
-        .btn { background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .btn-grid-4 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+        .btn { flex: 1 1 calc(50% - 8px); background: var(--bg); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; text-align: center; }
+        .btn:disabled { opacity: 0.3; cursor: not-allowed; } /* Efek transparan saat tombol redup */
         .btn:not(:disabled):hover { background: #21262d; color: #fff; }
+        
         .status-badge { background: rgba(88, 166, 255, 0.1); color: var(--blu); padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
     </style>
 </head>
@@ -51,6 +63,7 @@
         loadPrices();
         pollActiveOrders();
         setInterval(pollActiveOrders, 5000);
+        setInterval(updateTimers, 1000);
     }
 
     async function updateBalance() {
@@ -90,9 +103,10 @@
             if(json.success) {
                 const order = json.data.orders[0];
                 localStorage.setItem('phone_' + order.id, order.phone_number);
+                localStorage.setItem('timer_' + order.id, Date.now() + (20 * 60 * 1000));
                 pollActiveOrders();
                 updateBalance();
-            } else { alert(json.error.message); }
+            } else { alert(json.error.message || "Gagal memesan stok."); }
         } catch (e) {}
     }
 
@@ -109,34 +123,81 @@
         if (!orders || orders.length === 0) { container.innerHTML = ''; return; }
 
         container.innerHTML = orders.map(o => {
-            // Logika Sinkronisasi: Cek Local Storage dulu, kalau kosong pakai kiriman Detektif Worker
             const savedPhone = localStorage.getItem('phone_' + o.id);
             const phone = o.phone || savedPhone || 'Mencari Nomor...';
             
-            // Jika Worker berhasil nemuin nomor yang hilang, simpan permanen di perangkat ini
             if(o.phone && !savedPhone) localStorage.setItem('phone_' + o.id, o.phone);
             
-            const otp = o.otp_code || 'Waiting for OTP...';
-            const otpColor = o.otp_code ? 'var(--grn)' : '#8b949e';
+            if(!localStorage.getItem('timer_' + o.id)) {
+                localStorage.setItem('timer_' + o.id, Date.now() + (20 * 60 * 1000));
+            }
+
+            const endTimeStr = localStorage.getItem('timer_' + o.id);
+            let passed2Mins = false;
+            if (endTimeStr) {
+                const remaining = Math.floor((parseInt(endTimeStr) - Date.now()) / 1000);
+                if (remaining <= 1080) passed2Mins = true;
+            }
+
+            // Animasi Garis atau Tampilan Kode OTP
+            let otpDisplay = '';
+            if (o.otp_code) {
+                otpDisplay = `<div style="font-size:24px; font-weight:bold; color:var(--grn); font-family:monospace; letter-spacing:2px;">${o.otp_code}</div>`;
+            } else {
+                otpDisplay = `
+                <div class="loader-bars">
+                    <span></span><span></span><span></span>
+                </div>`;
+            }
+            
+            // Logika disabled (meredupkan tombol alih-alih menyembunyikannya)
+            const resendState = o.otp_code ? '' : 'disabled';
+            const cancelReplaceState = passed2Mins ? '' : 'disabled';
             
             return `
             <div class="order-card">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px;">
-                    <span style="color:var(--grn); font-weight:bold; font-family:monospace;">#${o.id}</span>
-                    <span class="status-badge">ACTIVE</span>
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--brd); padding-bottom:10px; align-items:center;">
+                    <span style="color:var(--grn); font-weight:bold; font-family:monospace;">#${o.id} <span class="status-badge">ACTIVE</span></span>
+                    <span class="timer-display" data-id="${o.id}" style="color:var(--blu); font-weight:bold; font-family:monospace; font-size:14px;">--:--</span>
                 </div>
                 <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">KLIK UNTUK SALIN:</div>
                 <div class="phone-box" onclick="copyText('${phone}', this)">${phone}</div>
                 <div style="font-size:11px; color:#8b949e; margin-bottom:5px;">OTP:</div>
-                <div style="font-size:22px; font-weight:bold; color:${otpColor}; font-family:monospace; min-height:30px;">${otp}</div>
+                <div style="min-height:35px; display:flex; align-items:center;">
+                    ${otpDisplay}
+                </div>
                 <div class="btn-grid-4">
-                    <button class="btn" onclick="act('finish', ${o.id})" ${o.otp_code?'':'disabled'}>Done</button>
-                    <button class="btn" onclick="act('resend', ${o.id})">Resend</button>
-                    <button class="btn" onclick="act('cancel', ${o.id})">Cancel</button>
-                    <button class="btn" onclick="act('replace', ${o.id})">Replace</button>
+                    <button class="btn" onclick="act('finish', ${o.id})" ${o.otp_code?'style="color:var(--grn); border-color:var(--grn);"':'disabled'}>✓ DONE</button>
+                    <button class="btn" id="btn-resend-${o.id}" onclick="act('resend', ${o.id})" ${resendState}>↻ RESEND</button>
+                    <button class="btn" id="btn-cancel-${o.id}" onclick="act('cancel', ${o.id})" ${cancelReplaceState}>✕ CANCEL</button>
+                    <button class="btn" id="btn-replace-${o.id}" onclick="act('replace', ${o.id})" ${cancelReplaceState}>⇄ REPLACE</button>
                 </div>
             </div>`;
         }).join('');
+    }
+
+    // Fungsi Timer Sekaligus Mengaktifkan Tombol
+    function updateTimers() {
+        document.querySelectorAll('.timer-display').forEach(el => {
+            const id = el.dataset.id;
+            const endTime = localStorage.getItem('timer_' + id);
+            if(endTime) {
+                const diffSecs = Math.max(0, Math.floor((parseInt(endTime) - Date.now()) / 1000));
+                const m = Math.floor(diffSecs / 60);
+                const s = diffSecs % 60;
+                el.innerText = `${m}:${s.toString().padStart(2, '0')}`;
+                
+                if (diffSecs < 180) el.style.color = "var(--org)";
+                
+                // MENGHIDUPKAN TOMBOL: Jika sisa waktu <= 18:00 (lewat 2 menit), hapus status disabled
+                if (diffSecs <= 1080) {
+                    const btnCancel = document.getElementById('btn-cancel-' + id);
+                    const btnReplace = document.getElementById('btn-replace-' + id);
+                    if(btnCancel) btnCancel.disabled = false;
+                    if(btnReplace) btnReplace.disabled = false;
+                }
+            }
+        });
     }
 
     function copyText(txt, el) {
@@ -149,18 +210,35 @@
     }
 
     async function act(a, id) {
+        let msg = "Lanjutkan?";
+        if(a === 'cancel') msg = "Yakin ingin membatalkan pesanan ini?";
+        if(a === 'replace') msg = "Ganti dengan nomor baru sekarang?";
+        if(a === 'resend') msg = "Kirim ulang SMS OTP ke nomor ini?";
+        if(a === 'finish') msg = "Selesaikan pesanan?";
+        
+        if(!confirm(msg)) return;
+
         try {
             const res = await fetch(`${WORKER}/order-action`, {
                 method: "POST", headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ id: id, action: a })
             });
             const json = await res.json();
+            
             if(json.success) {
-                if(a !== 'resend') localStorage.removeItem('phone_' + id);
+                if(a === 'cancel' || a === 'finish' || a === 'replace') {
+                    localStorage.removeItem('phone_' + id);
+                    localStorage.removeItem('timer_' + id);
+                }
+                document.getElementById('activeOrdersContainer').innerHTML = '';
                 pollActiveOrders();
                 updateBalance();
-            } else { alert(json.error.message); }
-        } catch (e) {}
+            } else { 
+                alert("Gagal: " + (json.error?.message || json.error || "Aksi ditolak server.")); 
+            }
+        } catch (e) {
+            alert("Terjadi kesalahan jaringan.");
+        }
     }
 
     init();
