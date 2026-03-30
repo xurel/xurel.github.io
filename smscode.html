@@ -11,26 +11,23 @@
         .container { width: 90%; max-width: 420px; background: var(--card); border: 1px solid var(--brd); border-radius: 16px; padding: 25px; margin-top: 30px; margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideInPage 0.5s ease; }
         @keyframes slideInPage { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
         
-        /* HEADER MODERN */
+        /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid var(--brd); }
         .header-left { display: flex; align-items: center; gap: 15px; }
-        
-        /* Gaya Ikon Menu & Note */
         .icon-btn { color: #8b949e; display: flex; align-items: center; justify-content: center; padding: 6px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; text-decoration: none; }
         .icon-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
         .icon-btn:active { transform: scale(0.95); }
-        
-        /* Kotak Saldo Smooth */
         .bal-container { background: #21262d; border: 1px solid var(--brd); padding: 6px 14px; border-radius: 10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.15), 0 2px 5px rgba(0,0,0,0.1); transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; }
         .bal-val { color: var(--grn); font-weight: bold; font-family: monospace; font-size: 16px; letter-spacing: 0.5px; }
 
+        /* DAFTAR HARGA & KARTU PESANAN */
         .price-list { border: 1px solid var(--brd); border-radius: 10px; overflow: hidden; background: var(--bg); margin-bottom: 20px; }
         .price-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid var(--brd); cursor: pointer; transition: 0.2s; }
         .price-item:hover { background: #21262d; border-left: 4px solid var(--org); padding-left: 19px; }
         .price-item:last-child { border-bottom: none; }
-        
         .order-card { background: var(--bg); border: 1px solid var(--brd); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
         
+        /* ANIMASI LOADING OTP */
         .loader-bars { display: flex; align-items: center; gap: 4px; height: 20px; padding-left: 2px; }
         .loader-bars span { display: block; width: 4px; height: 100%; background-color: #8b949e; border-radius: 2px; animation: bounceBar 1.2s infinite ease-in-out; }
         .loader-bars span:nth-child(1) { animation-delay: -0.24s; }
@@ -42,12 +39,28 @@
         .phone-box:active { background: var(--brd); color: var(--blu); }
         
         .btn-grid-4 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-        .btn { flex: 1 1 calc(50% - 8px); background: var(--card); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; text-align: center; }
-        .btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .btn:not(:disabled):hover { background: #21262d; color: #fff; border-color: #8b949e; }
+        .btn-action { flex: 1 1 calc(50% - 8px); background: var(--card); border: 1px solid var(--brd); border-radius: 8px; padding: 12px; color: #8b949e; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; text-transform: uppercase; text-align: center; }
+        .btn-action:disabled { opacity: 0.3; cursor: not-allowed; }
+        .btn-action:not(:disabled):hover { background: #21262d; color: #fff; border-color: #8b949e; }
         
         .section-title { font-size: 12px; color: #8b949e; margin-bottom: 12px; font-weight: bold; letter-spacing: 1.5px; text-transform: uppercase; padding-left: 2px; }
         .status-badge { background: rgba(88, 166, 255, 0.1); color: var(--blu); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: bold; }
+
+        /* CUSTOM POPUP (MODAL) PREMIUM */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(3px); display: flex; justify-content: center; align-items: center; z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+        .modal-overlay.active { opacity: 1; pointer-events: auto; }
+        .modal-box { background: var(--card); border: 1px solid var(--brd); border-radius: 16px; padding: 25px; width: 85%; max-width: 320px; box-shadow: 0 15px 40px rgba(0,0,0,0.5); transform: scale(0.95) translateY(10px); transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+        .modal-overlay.active .modal-box { transform: scale(1) translateY(0); }
+        .modal-title { font-size: 16px; font-weight: bold; color: #fff; margin-bottom: 10px; }
+        .modal-msg { font-size: 14px; color: #8b949e; margin-bottom: 25px; line-height: 1.5; }
+        .modal-btn-wrap { display: flex; gap: 10px; justify-content: flex-end; }
+        .m-btn { padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; border: none; transition: 0.2s; }
+        .m-btn-cancel { background: var(--bg); border: 1px solid var(--brd); color: #8b949e; }
+        .m-btn-cancel:hover { color: #fff; background: var(--brd); }
+        .m-btn-confirm { background: var(--blu); color: #fff; }
+        .m-btn-confirm:hover { filter: brightness(1.2); }
+        .m-btn-danger { background: var(--org); color: #fff; }
+        .m-btn-danger:hover { filter: brightness(1.2); }
     </style>
 </head>
 <body>
@@ -56,23 +69,12 @@
     <div class="header">
         <div class="header-left">
             <a href="#" class="icon-btn" onclick="location.reload(); return false;" title="Home">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
             </a>
-            <a href="https://xurel.github.io/notes.html" target="_blank" class="icon-btn" title="Catatan">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                    <polyline points="10 9 9 9 8 9"></polyline>
-                </svg>
+            <a href="https://xurel.github.io/smsnotes.html" target="_blank" class="icon-btn" title="Catatan">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
             </a>
         </div>
-        
         <div style="text-align:right;">
             <div class="bal-container">
                 <div id="balDisplay" class="bal-val">...</div>
@@ -88,8 +90,54 @@
     </div>
 </div>
 
+<div class="modal-overlay" id="customModal">
+    <div class="modal-box">
+        <div class="modal-title" id="modalTitle">Konfirmasi</div>
+        <div class="modal-msg" id="modalMsg">Pesan di sini</div>
+        <div class="modal-btn-wrap" id="modalActions">
+            </div>
+    </div>
+</div>
+
 <script>
     const WORKER = "https://smscode.aam-zip.workers.dev";
+
+    // --- SISTEM CUSTOM POPUP (MENGGANTIKAN ALERT & CONFIRM) ---
+    function showModal(title, message, type = 'alert') {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('customModal');
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMsg').innerText = message;
+            
+            const actionsDiv = document.getElementById('modalActions');
+            actionsDiv.innerHTML = ''; // Bersihkan tombol lama
+
+            if (type === 'confirm' || type === 'danger') {
+                const btnCancel = document.createElement('button');
+                btnCancel.className = 'm-btn m-btn-cancel';
+                btnCancel.innerText = 'Batal';
+                btnCancel.onclick = () => { overlay.classList.remove('active'); resolve(false); };
+                
+                const btnOk = document.createElement('button');
+                btnOk.className = type === 'danger' ? 'm-btn m-btn-danger' : 'm-btn m-btn-confirm';
+                btnOk.innerText = 'Lanjutkan';
+                btnOk.onclick = () => { overlay.classList.remove('active'); resolve(true); };
+                
+                actionsDiv.appendChild(btnCancel);
+                actionsDiv.appendChild(btnOk);
+            } else {
+                // Tipe Alert biasa
+                const btnOk = document.createElement('button');
+                btnOk.className = 'm-btn m-btn-confirm';
+                btnOk.innerText = 'Tutup';
+                btnOk.onclick = () => { overlay.classList.remove('active'); resolve(true); };
+                actionsDiv.appendChild(btnOk);
+            }
+            
+            overlay.classList.add('active');
+        });
+    }
+    // ------------------------------------------------------------
 
     async function init() {
         updateBalance();
@@ -114,7 +162,7 @@
             const container = document.getElementById('priceContainer');
             if (json.success && json.data.length > 0) {
                 container.innerHTML = json.data.map(i => `
-                    <div class="price-item" onclick="buy(${i.id}, ${i.price})">
+                    <div class="price-item" onclick="buy(${i.id}, ${i.price}, '${i.name}')">
                         <div>
                             <div style="font-weight:bold; font-size:14px; color:#fff; margin-bottom:2px;">${i.name}</div>
                             <div style="color:var(--grn); font-size:13px; font-weight:bold; font-family:monospace;">Rp ${i.price.toLocaleString('id-ID')}</div>
@@ -127,8 +175,11 @@
         } catch (e) { document.getElementById('priceContainer').innerHTML = '<div style="padding:40px; text-align:center; color:var(--org);">Gagal Memuat Stok</div>'; }
     }
 
-    async function buy(pid, price) {
-        if(!confirm(`Beli nomor seharga Rp ${price.toLocaleString('id-ID')}?`)) return;
+    async function buy(pid, price, name) {
+        // Menggunakan Custom Popup
+        const isConfirmed = await showModal("Pesanan Baru", `Anda akan membeli nomor untuk ${name} seharga Rp ${price.toLocaleString('id-ID')}. Saldo Anda akan otomatis terpotong.`, "confirm");
+        if(!isConfirmed) return;
+        
         try {
             const res = await fetch(`${WORKER}/create-order`, {
                 method: "POST", headers: {"Content-Type": "application/json"},
@@ -141,8 +192,12 @@
                 localStorage.setItem('timer_' + order.id, Date.now() + (20 * 60 * 1000));
                 pollActiveOrders();
                 updateBalance();
-            } else { alert(json.error.message || "Gagal memesan stok."); }
-        } catch (e) {}
+            } else { 
+                showModal("Pemesanan Gagal", json.error.message || "Gagal memesan stok. Coba lagi nanti.", "alert"); 
+            }
+        } catch (e) {
+            showModal("Kesalahan", "Terjadi masalah jaringan saat menghubungi server pusat.", "alert");
+        }
     }
 
     async function pollActiveOrders() {
@@ -169,13 +224,9 @@
             
             if(!localStorage.getItem('timer_' + o.id)) {
                 let expireTime;
-                if (o.expires_at || o.expire_at || o.expired_at) {
-                    expireTime = new Date(o.expires_at || o.expire_at || o.expired_at).getTime();
-                } else if (o.created_at || o.createdAt || o.date) {
-                    expireTime = new Date(o.created_at || o.createdAt || o.date).getTime() + (20 * 60 * 1000);
-                } else {
-                    expireTime = Date.now() + (20 * 60 * 1000); 
-                }
+                if (o.expires_at || o.expire_at || o.expired_at) expireTime = new Date(o.expires_at || o.expire_at || o.expired_at).getTime();
+                else if (o.created_at || o.createdAt || o.date) expireTime = new Date(o.created_at || o.createdAt || o.date).getTime() + (20 * 60 * 1000);
+                else expireTime = Date.now() + (20 * 60 * 1000); 
                 localStorage.setItem('timer_' + o.id, expireTime);
             }
 
@@ -223,10 +274,10 @@
                         ${otpDisplay}
                     </div>
                     <div class="btn-grid-4">
-                        <button class="btn btn-done" onclick="act('finish', ${o.id})" ${o.otp_code?'style="color:var(--grn); border-color:var(--grn);"':'disabled'}>✓ DONE</button>
-                        <button class="btn btn-resend" id="btn-resend-${o.id}" onclick="act('resend', ${o.id})" ${resendState}>↻ RESEND</button>
-                        <button class="btn btn-cancel" id="btn-cancel-${o.id}" onclick="act('cancel', ${o.id})" ${cancelReplaceState}>✕ CANCEL</button>
-                        <button class="btn btn-replace" id="btn-replace-${o.id}" onclick="act('replace', ${o.id})" ${cancelReplaceState}>⇄ REPLACE</button>
+                        <button class="btn-action btn-done" onclick="act('finish', ${o.id})" ${o.otp_code?'style="color:var(--grn); border-color:var(--grn);"':'disabled'}>✓ DONE</button>
+                        <button class="btn-action btn-resend" id="btn-resend-${o.id}" onclick="act('resend', ${o.id})" ${resendState}>↻ RESEND</button>
+                        <button class="btn-action btn-cancel" id="btn-cancel-${o.id}" onclick="act('cancel', ${o.id})" ${cancelReplaceState}>✕ CANCEL</button>
+                        <button class="btn-action btn-replace" id="btn-replace-${o.id}" onclick="act('replace', ${o.id})" ${cancelReplaceState}>⇄ REPLACE</button>
                     </div>
                 </div>`;
                 container.insertAdjacentHTML('afterbegin', cardHTML);
@@ -263,12 +314,18 @@
     }
 
     async function act(a, id) {
+        // Menggunakan Custom Popup untuk Aksi
+        let title = "Konfirmasi Aksi";
         let msg = "Lanjutkan?";
-        if(a === 'cancel') msg = "Yakin ingin membatalkan pesanan ini?";
-        if(a === 'replace') msg = "Batalkan ini dan ganti nomor baru?";
-        if(a === 'resend') msg = "Kirim ulang SMS OTP ke nomor ini?";
-        if(a === 'finish') msg = "Selesaikan pesanan?";
-        if(!confirm(msg)) return;
+        let popupType = "confirm";
+        
+        if(a === 'cancel') { title = "Batalkan Pesanan"; msg = "Yakin ingin membatalkan pesanan ini? Saldo akan dikembalikan secara otomatis."; popupType = "danger"; }
+        if(a === 'replace') { title = "Ganti Nomor"; msg = "Batalkan pesanan ini dan ganti dengan nomor baru?"; }
+        if(a === 'resend') { title = "Kirim Ulang OTP"; msg = "Apakah Anda ingin meminta kode OTP baru ke nomor ini?"; }
+        if(a === 'finish') { title = "Selesaikan"; msg = "Konfirmasi bahwa pesanan ini telah selesai."; }
+        
+        const isConfirmed = await showModal(title, msg, popupType);
+        if(!isConfirmed) return;
 
         try {
             const res = await fetch(`${WORKER}/order-action`, {
@@ -278,7 +335,7 @@
             
             const text = await res.text();
             let json;
-            try { json = JSON.parse(text); } catch(e) { json = { success: false, error: { message: "Respons API pusat tidak valid/ditolak." } }; }
+            try { json = JSON.parse(text); } catch(e) { json = { success: false, error: { message: "Respons API pusat tidak valid atau server sedang sibuk." } }; }
             
             if(json.success) {
                 if(a === 'cancel' || a === 'finish' || a === 'replace') {
@@ -287,8 +344,12 @@
                 }
                 pollActiveOrders(); 
                 updateBalance();
-            } else { alert("Gagal: " + (json.error?.message || json.error || "Aksi ditolak.")); }
-        } catch (e) { alert("Kesalahan jaringan/koneksi saat mengirim perintah."); }
+            } else { 
+                showModal("Gagal Eksekusi", json.error?.message || json.error || "Aksi ditolak oleh server.", "alert"); 
+            }
+        } catch (e) { 
+            showModal("Kesalahan", "Terjadi masalah jaringan saat mengirim perintah ke server.", "alert"); 
+        }
     }
 
     init();
