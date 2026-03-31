@@ -21,6 +21,8 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
         body { background-color: var(--fb-bg); color: var(--fb-text); padding-top: 60px; min-height: 100vh; }
+        
+        input, textarea { user-select: auto !important; pointer-events: auto !important; }
 
         /* ================= TOP NAVIGATION ================= */
         .top-nav {
@@ -36,15 +38,16 @@
         }
         .menu-btn:hover { background: var(--fb-hover); }
 
-        /* Dropdown Login Admin */
+        /* Dropdown Hamburger Kiri (Pusat Login/Logout) */
         .global-login {
             display: none; position: absolute; top: 50px; left: 0; background: var(--fb-card); 
-            padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 260px; border: 1px solid var(--fb-border);
+            padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); width: 260px; border: 1px solid var(--fb-border); z-index: 1001;
         }
         .global-login.active { display: block; animation: fadeIn 0.2s ease; }
-        .form-input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid var(--fb-border); border-radius: 6px; outline: none; }
-        .btn-primary { width: 100%; padding: 10px; background: var(--fb-blue); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .btn-danger { width: 100%; padding: 10px; background: var(--fb-red); color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .form-input { width: 100%; padding: 12px 10px; margin-bottom: 10px; border: 1px solid var(--fb-border); border-radius: 6px; outline: none; font-size: 14px;}
+        .btn-primary { width: 100%; padding: 12px 10px; background: var(--fb-blue); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
+        .btn-primary:hover { background: #1558b0; }
+        .btn-danger { width: 100%; padding: 12px 10px; background: var(--fb-red); color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 14px; cursor: pointer; transition: 0.2s; }
 
         .nav-tabs-center { display: flex; height: 100%; gap: 10px; }
         .nav-btn {
@@ -56,11 +59,11 @@
         .nav-right { width: 50px; }
 
         /* ================= APP CONTAINERS ================= */
-        .app-section { display: none; padding: 20px 10px; max-width: 800px; margin: 0 auto; animation: fadeIn 0.3s ease; }
+        .app-section { display: none; padding: 20px 10px; max-width: 800px; margin: 0 auto; animation: fadeIn 0.3s ease; position: relative; z-index: 1; }
         .app-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
 
-        .content-card { background: var(--fb-card); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; }
+        .content-card { background: var(--fb-card); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; position: relative; z-index: 2; }
         .hidden { display: none !important; }
 
         /* ================= CSS SHOPEE (A1) ================= */
@@ -80,7 +83,7 @@
 
         /* ================= CSS NOTES (A2) ================= */
         .notes-subnav { display: flex; gap: 10px; margin-bottom: 15px; background: #e4e6eb; padding: 5px; border-radius: 20px; width: fit-content; }
-        .note-tab { border: none; background: transparent; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 16px; color: var(--fb-muted); }
+        .note-tab { border: none; background: transparent; padding: 8px 18px; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--fb-muted); }
         .note-tab.active { background: white; color: var(--fb-blue); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
         
         .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
@@ -109,10 +112,9 @@
         
         .order-card { border: 1px solid var(--fb-border); background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
-        /* Layout Phone Box Jarak Dekat */
         .phone-box { 
             font-size: 24px; font-weight: bold; font-family: monospace; cursor: pointer; 
-            padding: 10px 0; color: var(--fb-text); display: flex; align-items: center; justify-content: flex-start; gap: 8px; 
+            padding: 10px 0; color: var(--fb-text); display: flex; align-items: center; justify-content: flex-start; gap: 10px; 
             width: 100%;
         }
         .phone-box i { font-size: 20px; transition: color 0.2s ease; }
@@ -122,7 +124,7 @@
         .sms-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .sms-btn:not(:disabled):hover { background: var(--fb-hover); color: var(--fb-text); }
 
-        .loader-bars { display: flex; align-items: center; gap: 4px; height: 20px; padding-left: 2px;}
+        .loader-bars { display: flex; align-items: center; justify-content: center; gap: 4px; height: 20px;}
         .loader-bars span { display: block; width: 4px; height: 100%; background-color: var(--fb-muted); border-radius: 2px; animation: bounceBar 1.2s infinite ease-in-out; }
         .loader-bars span:nth-child(1) { animation-delay: -0.24s; }
         .loader-bars span:nth-child(2) { animation-delay: -0.12s; }
@@ -134,7 +136,10 @@
         .modal-overlay.active { display: flex; animation: fadeIn 0.2s ease; }
         #universal-modal { z-index: 9999 !important; background: rgba(0,0,0,0.7); backdrop-filter: blur(2px); }
         .modal-box { background: white; padding: 25px; border-radius: 12px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
-        .m-btn { padding: 10px 18px; border-radius: 8px; font-weight: bold; cursor: pointer; border: none; margin-left: 8px; transition: 0.2s; }
+        
+        /* Tombol Konfirmasi Diperbesar */
+        .m-btn { padding: 14px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; border: none; margin-left: 8px; transition: 0.2s; text-transform: uppercase; }
+        .m-btn:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
@@ -190,9 +195,17 @@
 
     <div id="app-notes" class="app-section">
         <div class="notes-subnav">
-            <button id="tab-pub" class="note-tab active" onclick="switchNoteTab('public')" title="Publik"><i class="fa-solid fa-globe"></i></button>
-            <button id="tab-priv" class="note-tab hidden" onclick="switchNoteTab('private')" title="Privat"><i class="fa-solid fa-lock"></i></button>
+            <button id="tab-pub" class="note-tab active" onclick="switchNoteTab('public')">Publik</button>
+            <button id="tab-priv" class="note-tab" onclick="switchNoteTab('private')"><i class="fa-solid fa-lock"></i> Privat</button>
         </div>
+        
+        <div id="note-lock-section" class="content-card hidden" style="text-align: center; padding: 40px 20px;">
+            <i class="fa-solid fa-lock" style="font-size: 40px; color: var(--fb-muted); margin-bottom: 15px;"></i>
+            <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--fb-text);">Catatan Terkunci</h3>
+            <p style="font-size: 12px; color: var(--fb-muted); margin-bottom: 20px;">Silakan login melalui <b>Menu Utama (Garis tiga di pojok kiri atas)</b> untuk melihat catatan privat Anda.</p>
+            <button class="btn-primary" style="width: auto; padding: 10px 20px;" onclick="toggleMainMenu()">Buka Menu Login</button>
+        </div>
+
         <div id="notes-grid" class="notes-grid"></div>
     </div>
     <button id="fab-note" class="fab" onclick="openNoteModal()"><i class="fas fa-plus"></i></button>
@@ -230,8 +243,8 @@
             <input type="text" id="note-title" class="form-input" placeholder="Judul (Kosongkan utk auto-number)">
             <textarea id="note-content" class="form-input" style="min-height: 150px; resize: vertical;" placeholder="Tulis sesuatu..."></textarea>
             <div style="display: flex; gap: 10px; margin-top: 10px;">
-                <button class="m-btn" style="flex: 1; background: var(--fb-bg); color:var(--fb-muted); margin-left:0;" onclick="closeModal('modal-note-form')">Batal</button>
-                <button class="m-btn btn-primary" style="flex: 2; margin-left: 0;" onclick="saveNote()">Simpan</button>
+                <button class="m-btn" style="flex: 1; background: var(--fb-bg); color:var(--fb-muted); margin-left:0;" onclick="closeModal('modal-note-form')">BATAL</button>
+                <button class="m-btn btn-primary" style="flex: 2; margin-left: 0;" onclick="saveNote()">SIMPAN</button>
             </div>
         </div>
     </div>
@@ -245,9 +258,9 @@
             <h2 id="view-title" style="margin-bottom:15px; font-weight:800; font-size:20px;"></h2>
             <div id="view-content" style="background:#f8f9fa; padding:15px; border-radius:8px; min-height:150px; max-height:50vh; overflow-y:auto; white-space:pre-wrap; word-wrap:break-word; font-size:14px;"></div>
             <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="m-btn btn-primary" style="flex:1; margin-left:0;" onclick="editNote()"><i class="fas fa-edit"></i> Edit</button>
-                <button class="m-btn btn-primary" style="flex:1; background:#f39c12; margin-left:0;" onclick="copyNoteContent()"><i class="fas fa-copy"></i> Salin</button>
-                <button class="m-btn btn-danger" style="width:50px; margin-left:0;" onclick="deleteNote()"><i class="fas fa-trash"></i></button>
+                <button class="m-btn btn-primary" style="flex:1; margin-left:0; padding:12px;" onclick="editNote()"><i class="fas fa-edit"></i> Edit</button>
+                <button class="m-btn btn-primary" style="flex:1; background:#f39c12; margin-left:0; padding:12px;" onclick="copyNoteContent(this)"><i class="fas fa-copy"></i> Salin</button>
+                <button class="m-btn btn-danger" style="width:50px; margin-left:0; padding:12px;" onclick="deleteNote()"><i class="fas fa-trash"></i></button>
             </div>
         </div>
     </div>
@@ -262,16 +275,17 @@
                 const actions = document.getElementById('u-modal-actions');
                 actions.innerHTML = '';
                 
+                // Kata dirubah menjadi BATAL dan OKE
                 if (type === 'confirm' || type === 'danger') {
                     const btnCancel = document.createElement('button');
                     btnCancel.className = 'm-btn'; 
-                    btnCancel.style.background = 'var(--fb-bg)'; btnCancel.style.color = 'var(--fb-muted)';
-                    btnCancel.innerText = 'Batal';
+                    btnCancel.style.background = 'var(--fb-hover)'; btnCancel.style.color = 'var(--fb-text)';
+                    btnCancel.innerText = 'BATAL';
                     btnCancel.onclick = () => { ov.classList.remove('active'); resolve(false); };
                     
                     const btnOk = document.createElement('button');
                     btnOk.className = 'm-btn ' + (type === 'danger' ? 'btn-danger' : 'btn-primary'); 
-                    btnOk.innerText = 'Lanjutkan';
+                    btnOk.innerText = 'OKE';
                     btnOk.onclick = () => { ov.classList.remove('active'); resolve(true); };
                     
                     actions.appendChild(btnCancel);
@@ -279,7 +293,7 @@
                 } else {
                     const btnOk = document.createElement('button');
                     btnOk.className = 'm-btn btn-primary'; 
-                    btnOk.innerText = 'Tutup';
+                    btnOk.innerText = 'OKE';
                     btnOk.onclick = () => { ov.classList.remove('active'); resolve(true); };
                     actions.appendChild(btnOk);
                 }
@@ -297,7 +311,7 @@
             document.getElementById('app-' + appId).classList.add('active');
             btnElement.classList.add('active');
             
-            document.getElementById('fab-note').style.display = (appId === 'notes') ? 'flex' : 'none';
+            document.getElementById('fab-note').style.display = (appId === 'notes' && document.getElementById('note-lock-section').classList.contains('hidden')) ? 'flex' : 'none';
             if(appId === 'sms' && !smsInitialized) initSms();
         }
 
@@ -310,44 +324,58 @@
             }
         });
 
-        // ================= 2. FIREBASE INITIALIZATION =================
-        const configShopee = { apiKey: "AIzaSyDX5o3n7iQjqcS0ZJsbir_35JOpG7jqkPA", authDomain: "link-shopee-bc394.firebaseapp.com", databaseURL: "https://link-shopee-bc394-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "link-shopee-bc394" };
-        const configNotes = { apiKey: "AIzaSyC-cSIk3mraVl5sa24VcDWnRTpF50pBAoE", authDomain: "muzans-d76c4.firebaseapp.com", databaseURL: "https://muzans-d76c4-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "muzans-d76c4" };
+        // ================= 2. FIREBASE INITIALIZATION (GABUNGAN MASTER) =================
+        // HANYA MENGGUNAKAN SATU DATABASE MASTER AGAR TIDAK EROR
+        const configMaster = { 
+            apiKey: "AIzaSyDX5o3n7iQjqcS0ZJsbir_35JOpG7jqkPA", 
+            authDomain: "link-shopee-bc394.firebaseapp.com", 
+            databaseURL: "https://link-shopee-bc394-default-rtdb.asia-southeast1.firebasedatabase.app", 
+            projectId: "link-shopee-bc394" 
+        };
 
-        const appShopee = firebase.initializeApp(configShopee, "ShopeeApp");
-        const appNotes = firebase.initializeApp(configNotes, "NotesApp");
+        firebase.initializeApp(configMaster);
 
-        const dbShopee = appShopee.database(); const authShopee = appShopee.auth();
-        const dbNotes = appNotes.database(); const authNotes = appNotes.auth();
+        const db = firebase.database(); 
+        const auth = firebase.auth();
 
         let globalUser = null;
 
-        authShopee.onAuthStateChanged(user => {
+        auth.onAuthStateChanged(user => {
             globalUser = user; const isAdmin = !!user;
+            
+            // Atur Menu Utama Login/Logout
             document.getElementById('login-form').classList.toggle('hidden', isAdmin);
             document.getElementById('logout-form').classList.toggle('hidden', !isAdmin);
+            
+            // Atur Shopee
             document.getElementById('shopee-admin').classList.toggle('hidden', !isAdmin);
             renderShopee();
             
-            document.getElementById('tab-priv').classList.toggle('hidden', !isAdmin);
-            if(!isAdmin && currentNoteTab === 'private') switchNoteTab('public');
-            syncNotes();
+            // Atur Note
+            if(currentNoteTab === 'private' && !isAdmin) {
+                switchNoteTab('public');
+            } else {
+                syncNotes();
+            }
         });
 
         function globalLogin() {
             const e = document.getElementById('global-email').value; const p = document.getElementById('global-pass').value;
-            authShopee.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
-            .then(() => authShopee.signInWithEmailAndPassword(e, p))
+            auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+            .then(() => auth.signInWithEmailAndPassword(e, p))
             .then(() => {
-                authNotes.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => authNotes.signInWithEmailAndPassword(e, p)).catch(()=>{});
                 document.getElementById('main-menu-popup').classList.remove('active');
             }).catch(() => showModal("Gagal Login", "Periksa kembali Email atau Password Anda.", "alert"));
         }
-        function globalLogout() { authShopee.signOut(); authNotes.signOut(); document.getElementById('main-menu-popup').classList.remove('active'); }
+        
+        function globalLogout() { 
+            auth.signOut(); 
+            document.getElementById('main-menu-popup').classList.remove('active'); 
+        }
 
         // ================= 3. LOGIKA SHOPEE =================
         let shopeeDataCache = {}; let editingShopeeKey = null;
-        dbShopee.ref('linkshopee').on('value', snap => { shopeeDataCache = snap.val() || {}; renderShopee(); });
+        db.ref('linkshopee').on('value', snap => { shopeeDataCache = snap.val() || {}; renderShopee(); });
 
         function formatRupiah(el) {
             let angka = el.value.replace(/[^,\d]/g, '').toString(); let split = angka.split(','); let sisa = split[0].length % 3;
@@ -360,7 +388,7 @@
             const t = document.getElementById('shopee-title').value; const u = document.getElementById('shopee-url').value;
             const p = document.getElementById('shopee-price').value; const s = document.getElementById('shopee-status').value;
             if(t && u) {
-                dbShopee.ref('linkshopee').push({ title: t, url: u, price: p, status: s, createdAt: Date.now() }).then(() => {
+                db.ref('linkshopee').push({ title: t, url: u, price: p, status: s, createdAt: Date.now() }).then(() => {
                     document.getElementById('shopee-title').value = ""; document.getElementById('shopee-url').value = "";
                     document.getElementById('shopee-price').value = ""; document.getElementById('shopee-status').value = "";
                 });
@@ -396,8 +424,8 @@
             });
         }
 
-        function saveEditShopee(key) { dbShopee.ref('linkshopee/'+key).update({ title: document.getElementById(`ed-t-${key}`).value, url: document.getElementById(`ed-u-${key}`).value }).then(() => { editingShopeeKey = null; renderShopee(); }); }
-        async function deleteShopee(key) { if(await showModal("Hapus Link", "Yakin ingin menghapus link Shopee ini?", "danger")) dbShopee.ref('linkshopee/'+key).remove(); }
+        function saveEditShopee(key) { db.ref('linkshopee/'+key).update({ title: document.getElementById(`ed-t-${key}`).value, url: document.getElementById(`ed-u-${key}`).value }).then(() => { editingShopeeKey = null; renderShopee(); }); }
+        async function deleteShopee(key) { if(await showModal("Hapus Link", "Yakin ingin menghapus link Shopee ini?", "danger")) db.ref('linkshopee/'+key).remove(); }
         function copyShopeeLink(event, url, btnElement) {
             event.preventDefault(); event.stopPropagation();
             navigator.clipboard.writeText(url).then(() => {
@@ -423,10 +451,22 @@
             currentNoteTab = tab;
             document.getElementById('tab-pub').classList.toggle('active', tab === 'public');
             document.getElementById('tab-priv').classList.toggle('active', tab === 'private');
-            syncNotes();
+            
+            if (tab === 'private' && !globalUser) {
+                document.getElementById('note-lock-section').classList.remove('hidden');
+                document.getElementById('notes-grid').classList.add('hidden');
+                document.getElementById('fab-note').style.display = 'none';
+            } else {
+                document.getElementById('note-lock-section').classList.add('hidden');
+                document.getElementById('notes-grid').classList.remove('hidden');
+                if (document.getElementById('app-notes').classList.contains('active')) {
+                    document.getElementById('fab-note').style.display = 'flex';
+                }
+                syncNotes();
+            }
         }
 
-        function getNotesPath() { return (currentNoteTab === 'private' && globalUser) ? `notes/xurel/users/${globalUser.uid}` : 'notes/xurel/public'; }
+        function getNotesPath() { return (currentNoteTab === 'private' && globalUser) ? `notes/users/${globalUser.uid}` : 'notes/public'; }
 
         function formatDate(ts) {
             if(!ts) return "---";
@@ -454,8 +494,8 @@
         }
 
         function syncNotes() {
-            const path = getNotesPath(); dbNotes.ref(path).off();
-            dbNotes.ref(path).orderByChild('timestamp').on('value', snap => {
+            const path = getNotesPath(); db.ref(path).off();
+            db.ref(path).orderByChild('timestamp').on('value', snap => {
                 const grid = document.getElementById('notes-grid'); grid.innerHTML = ''; let items = [];
                 snap.forEach(child => { items.push({ key: child.key, ...child.val() }); });
                 
@@ -481,7 +521,7 @@
             const path = getNotesPath();
             
             if(!t) {
-                dbNotes.ref(path).once('value').then(snapshot => {
+                db.ref(path).once('value').then(snapshot => {
                     let usedNumbers = new Set();
                     snapshot.forEach(child => {
                         if (isEditingNote && child.key === selectedNoteKey) return; 
@@ -490,14 +530,14 @@
                     });
                     let nextNum = 1; while (usedNumbers.has(nextNum)) { nextNum++; }
                     executeNoteSave(nextNum.toString(), c, path);
-                });
+                }).catch(e => showModal("Gagal", "Gagal menghubungi database.", "alert"));
             } else { executeNoteSave(t, c, path); }
         }
 
         function executeNoteSave(title, content, path) {
             const data = { title: title, content: content, timestamp: Date.now() };
-            const req = (isEditingNote && selectedNoteKey) ? dbNotes.ref(`${path}/${selectedNoteKey}`).update(data) : dbNotes.ref(path).push(data);
-            req.then(() => closeModal('modal-note-form'));
+            const req = (isEditingNote && selectedNoteKey) ? db.ref(`${path}/${selectedNoteKey}`).update(data) : db.ref(path).push(data);
+            req.then(() => closeModal('modal-note-form')).catch(() => showModal("Gagal", "Akses Ditolak.", "alert"));
         }
 
         function viewNote(key, data) {
@@ -517,12 +557,17 @@
 
         async function deleteNote() {
             if(await showModal("Hapus Catatan", "Yakin ingin menghapus catatan ini secara permanen?", "danger")) {
-                dbNotes.ref(`${getNotesPath()}/${selectedNoteKey}`).remove();
+                db.ref(`${getNotesPath()}/${selectedNoteKey}`).remove();
                 closeModal('modal-note-view');
             }
         }
-        function copyNoteContent() {
-            navigator.clipboard.writeText(currentNoteRaw).then(() => showModal("Berhasil", "Catatan berhasil disalin ke Papan Klip.", "alert"));
+        
+        // FUNGSI COPY NOTE TANPA POPUP
+        function copyNoteContent(btn) {
+            navigator.clipboard.writeText(currentNoteRaw);
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Tersalin';
+            setTimeout(() => { btn.innerHTML = originalHTML; }, 1500);
         }
 
         // ================= 5. LOGIKA SMS =================
@@ -530,14 +575,12 @@
         let currentSmsWorker = ""; let smsInitialized = false; let isSmsLocked = false;
 
         function initSms() {
-            smsInitialized = true; 
-            const select = document.getElementById('sms-server');
+            smsInitialized = true; const select = document.getElementById('sms-server');
             select.innerHTML = Object.keys(SMS_SERVERS).map(k => `<option value="${SMS_SERVERS[k]}">${k}</option>`).join('');
             isSmsLocked = localStorage.getItem('xurel_locked') === 'true';
             const savedServer = localStorage.getItem('xurel_selected_hp');
             if(savedServer && SMS_SERVERS[savedServer]) { currentSmsWorker = SMS_SERVERS[savedServer]; select.value = currentSmsWorker; } 
             else { currentSmsWorker = SMS_SERVERS["HP1"]; }
-            
             applySmsLockUI(); refreshSms(); setInterval(pollSms, 5000); setInterval(updateSmsTimers, 1000);
         }
 
@@ -574,8 +617,8 @@
                 if (json.success && json.data.length > 0) {
                     box.innerHTML = json.data.map(i => `
                         <div class="price-item" onclick="buySms(${i.id}, ${i.price}, '${i.name}')">
-                            <div><div style="font-weight:bold;">${i.name}</div><div style="color:var(--fb-red); font-family:monospace; font-size:14px; margin-top:2px;">Rp ${i.price}</div></div>
-                            <div style="font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
+                            <div><div style="font-weight:bold;">${i.name}</div></div>
+                            <div style="font-size:12px; color:var(--fb-muted);"><span style="color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; margin-right: 10px;">Rp ${i.price}</span> ${i.available} stok</div>
                         </div>`).join('');
                 } else box.innerHTML = '<div style="padding:30px; text-align:center;">Kosong</div>';
             } catch (e) {}
@@ -588,11 +631,7 @@
                 const j = await res.json();
                 if(j.success) {
                     const o = j.data.orders[0]; 
-                    
-                    // Simpan di Local Storage HP yang membeli
-                    localStorage.setItem('phone_'+o.id, o.phone_number); 
-                    localStorage.setItem('price_'+o.id, price);
-                    
+                    localStorage.setItem('phone_'+o.id, o.phone_number); localStorage.setItem('price_'+o.id, price);
                     pollSms(); updateSmsBal();
                 } else showModal("Gagal", j.error.message || "Gagal memesan stok.", "alert");
             } catch(e){}
@@ -602,7 +641,7 @@
             try { const res = await fetch(`${currentSmsWorker}/get-active`); const j = await res.json(); if(j.success) renderSmsOrders(j.data); } catch(e) {}
         }
 
-        // FUNGSI COPY SMS: Tanpa Animasi Mengecil, Centang Bulat Hijau (fa-circle-check)
+        // FUNGSI COPY SMS: Ikon Centang Lingkaran (fa-circle-check)
         function copyPhoneNumber(txt, iconId) {
             if(txt.includes('Mencari')) return;
             navigator.clipboard.writeText(txt);
@@ -630,24 +669,22 @@
                 const serverPrice = o.price || o.cost || localStorage.getItem('price_' + o.id);
                 if(serverPrice) localStorage.setItem('price_' + o.id, serverPrice);
                 
-                // LOGIKA SINKRONISASI ONLINE (Membaca API Worker Langsung)
+                // MENGHITUNG DURASI SECARA ONLINE DARI SERVER CLOUDFLARE
                 let expireTime = 0;
-                
-                // 1. Ambil waktu pembuatan dari mesin API (Ini yang bikin sync jalan)
                 if (o.expires_at) expireTime = new Date(o.expires_at).getTime();
                 else if (o.created_at) expireTime = new Date(o.created_at).getTime() + (20 * 60000);
                 else if (o.time) expireTime = new Date(o.time).getTime() + (20 * 60000);
                 else if (o.start_time) expireTime = new Date(o.start_time).getTime() + (20 * 60000);
+                else if (o.timestamp) expireTime = new Date(o.timestamp).getTime() + (20 * 60000);
+                else if (o.date) expireTime = new Date(o.date).getTime() + (20 * 60000);
                 
-                // 2. Jika Server tidak beri waktu, gunakan Lokal
+                // Fallback Lokal jika server tidak beri waktu sama sekali
                 if (!expireTime || isNaN(expireTime) || expireTime === 0) {
                     expireTime = localStorage.getItem('timer_' + o.id);
-                    if (!expireTime) {
-                        expireTime = Date.now() + (20 * 60000); // 20 Menit
-                    }
+                    if (!expireTime) expireTime = Date.now() + (20 * 60000);
                 }
                 
-                localStorage.setItem('timer_' + o.id, expireTime); // Amankan di cache HP
+                localStorage.setItem('timer_' + o.id, expireTime); 
                 
                 const endTimeStr = expireTime; 
                 let passed2Mins = false;
@@ -676,7 +713,11 @@
                     const cardHTML = `
                     <div class="order-card" id="order-${o.id}">
                         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
-                            <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${o.id} <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif;">ACTIVE</span></span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${o.id}</span>
+                                <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
+                                <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">Rp ${priceDisplay}</span>
+                            </div>
                             <span class="sms-timer" data-id="${o.id}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
                         </div>
                         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Tap untuk salin:</div>
@@ -686,11 +727,11 @@
                             <i id="copy-icon-${o.id}" class="fa-regular fa-copy" style="color: var(--fb-muted);"></i>
                         </div>
                         
-                        <div style="font-size:11px; color:var(--fb-muted); margin-bottom:2px;">HARGA BELI:</div>
-                        <div class="price-box" style="font-size:16px; font-weight:bold; color:var(--fb-red); font-family:monospace; margin-bottom:15px;">Rp ${priceDisplay}</div>
-                        
-                        <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px;">KODE OTP:</div>
-                        <div class="otp-container" style="min-height:35px; display:flex; align-items:center;">${otpDisplay}</div>
+                        <div style="text-align: center; margin: 10px 0 15px 0; padding: 15px 0; background: #fafafa; border-radius: 8px;">
+                            <div style="font-size:11px; color:var(--fb-muted); font-weight:bold; letter-spacing:1px; margin-bottom:5px;">KODE OTP</div>
+                            <div class="otp-container" style="min-height:35px; display:flex; align-items:center; justify-content:center;">${otpDisplay}</div>
+                        </div>
+
                         <div class="btn-grid-4">
                             <button class="sms-btn btn-done" onclick="actSms('finish', ${o.id})" ${o.otp_code?'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"':'disabled'}>✓ DONE</button>
                             <button class="sms-btn btn-resend" onclick="actSms('resend', ${o.id})" ${resendState}>↻ RESEND</button>
