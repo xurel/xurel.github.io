@@ -109,13 +109,13 @@
         
         .order-card { border: 1px solid var(--fb-border); background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
-        /* Box Nomor tanpa animasi scale agar diam, hanya icon yang merespon */
+        /* Phone Box Baru: Ikon lebih dekat dengan nomor */
         .phone-box { 
             font-size: 24px; font-weight: bold; font-family: monospace; cursor: pointer; 
-            padding: 10px 0; color: var(--fb-text); display: flex; align-items: center; justify-content: space-between; 
+            padding: 10px 0; color: var(--fb-text); display: flex; align-items: center; justify-content: flex-start; gap: 12px; 
             width: 100%;
         }
-        .phone-box i { font-size: 18px; transition: 0.2s; }
+        .phone-box i { font-size: 20px; transition: color 0.2s ease; } /* Transisi hanya pada warna */
         
         .btn-grid-4 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
         .sms-btn { flex: 1 1 calc(50% - 8px); padding: 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; border: 1px solid var(--fb-border); background: var(--fb-bg); color: var(--fb-muted); text-transform: uppercase; text-align: center; transition: 0.2s;}
@@ -525,20 +525,22 @@
             navigator.clipboard.writeText(currentNoteRaw).then(() => showModal("Berhasil", "Catatan berhasil disalin ke Papan Klip.", "alert"));
         }
 
-        // ================= 5. LOGIKA SMS (SYNC FIREBASE) =================
+        // ================= 5. LOGIKA SMS (SYNC FIREBASE CLOUD) =================
         const SMS_SERVERS = { "HP1": "https://smscode.aam-zip.workers.dev", "HP2": "https://smscodezip.aam-zip.workers.dev" };
         let currentSmsWorker = ""; let smsInitialized = false; let isSmsLocked = false;
         
-        // Listener Sinkronisasi Firebase Lintas Perangkat
         let syncSmsData = {};
 
         function initSms() {
             smsInitialized = true; 
             
-            // Dengarkan database Firebase untuk Sinkronisasi Lintas Perangkat
+            // Listener sinkronisasi waktu beli ke Firebase Cloud (Anti-reset antar perangkat)
             dbNotes.ref('notes/xurel/sms_sync').on('value', snap => {
                 syncSmsData = snap.val() || {};
                 updateSmsTimers();
+                if (document.getElementById('sms-active-orders').children.length > 0) {
+                    pollSms(); // Update ulang agar sinkron dengan Cloud
+                }
             });
 
             const select = document.getElementById('sms-server');
@@ -583,7 +585,7 @@
                 if (json.success && json.data.length > 0) {
                     box.innerHTML = json.data.map(i => `
                         <div class="price-item" onclick="buySms(${i.id}, ${i.price}, '${i.name}')">
-                            <div><div style="font-weight:bold;">${i.name}</div><div style="color:var(--fb-green); font-family:monospace;">Rp ${i.price}</div></div>
+                            <div><div style="font-weight:bold;">${i.name}</div><div style="color:var(--fb-red); font-family:monospace; font-size:14px; margin-top:2px;">Rp ${i.price}</div></div>
                             <div style="font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
                         </div>`).join('');
                 } else box.innerHTML = '<div style="padding:30px; text-align:center;">Kosong</div>';
@@ -599,12 +601,12 @@
                     const o = j.data.orders[0]; 
                     const timerExp = Date.now() + (20*60000);
                     
-                    // Simpan di Lokal
+                    // Simpan di Lokal HP yang dipakai membeli
                     localStorage.setItem('phone_'+o.id, o.phone_number); 
                     localStorage.setItem('price_'+o.id, price);
                     localStorage.setItem('timer_'+o.id, timerExp);
                     
-                    // SINKRONISASI KE FIREBASE (Untuk HP/Device Lain)
+                    // Simpan ke Cloud (Agar tidak ngulang saat pindah perangkat)
                     dbNotes.ref('notes/xurel/sms_sync/' + o.id).set({
                         phone: o.phone_number || '',
                         price: price,
@@ -620,18 +622,18 @@
             try { const res = await fetch(`${currentSmsWorker}/get-active`); const j = await res.json(); if(j.success) renderSmsOrders(j.data); } catch(e) {}
         }
 
-        // --- FUNGSI COPY SMS MODERN TANPA ANIMASI MENGECIL (Icon Kanan) ---
+        // FUNGSI COPY SMS - Tanpa popup, dengan Ikon Centang Lingkaran (fa-circle-check)
         function copyPhoneNumber(txt, iconId) {
             if(txt.includes('Mencari')) return;
             navigator.clipboard.writeText(txt);
             
             const icon = document.getElementById(iconId);
             if(icon) {
-                // Ubah menjadi centang hijau
-                icon.className = "fa-solid fa-check";
+                // Ikon berubah jadi centang hijau bulat
+                icon.className = "fa-solid fa-circle-check";
                 icon.style.color = "var(--fb-green)";
                 
-                // Kembalikan ke icon copy asli setelah 1.5 detik
+                // Kembali ke ikon awal secara mulus setelah 1.5 detik
                 setTimeout(() => { 
                     icon.className = "fa-regular fa-copy";
                     icon.style.color = "var(--fb-muted)";
@@ -647,20 +649,26 @@
             orders.forEach(o => {
                 const fbData = syncSmsData[o.id] || {};
                 
-                // Mengambil Data Prioritas dari Firebase, lalu Local, lalu Server
-                const phone = o.phone || fbData.phone || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
+                const phone = fbData.phone || o.phone || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
                 if(phone !== 'Mencari Nomor...') localStorage.setItem('phone_'+o.id, phone);
                 
-                const savedPrice = o.price || o.cost || fbData.price || localStorage.getItem('price_' + o.id);
+                const savedPrice = fbData.price || o.price || o.cost || localStorage.getItem('price_' + o.id);
                 if(savedPrice) localStorage.setItem('price_' + o.id, savedPrice);
                 
-                // MENYELESAIKAN MASALAH TIMER RESET
-                let expireTime = fbData.timer || localStorage.getItem('timer_' + o.id);
-                if (!expireTime) {
-                    // Jika benar-benar order baru dan belum terekam dimanapun
-                    expireTime = Date.now() + (20 * 60 * 1000);
+                // SISTEM PENARIKAN WAKTU DARI CLOUD
+                let expireTime = fbData.timer;
+                if (expireTime) {
+                    // Kalau Cloud sudah mencatat waktu aslinya, sinkronkan ke Lokal
+                    localStorage.setItem('timer_' + o.id, expireTime); 
+                } else {
+                    // Jika belum ada di Cloud, cari di Lokal
+                    expireTime = localStorage.getItem('timer_' + o.id);
+                    if (!expireTime) {
+                        // Hanya buat waktu baru jika ini order yang benar-benar asing (mencegah eror blank)
+                        expireTime = Date.now() + (20 * 60 * 1000);
+                        localStorage.setItem('timer_' + o.id, expireTime);
+                    }
                 }
-                localStorage.setItem('timer_' + o.id, expireTime); // Cache di lokal agar UI tidak delay
                 
                 const endTimeStr = expireTime; 
                 let passed2Mins = false;
@@ -700,7 +708,7 @@
                         </div>
                         
                         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:2px;">HARGA BELI:</div>
-                        <div class="price-box" style="font-size:16px; font-weight:bold; color:var(--fb-green); font-family:monospace; margin-bottom:15px;">Rp ${priceDisplay}</div>
+                        <div class="price-box" style="font-size:16px; font-weight:bold; color:var(--fb-red); font-family:monospace; margin-bottom:15px;">Rp ${priceDisplay}</div>
                         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px;">KODE OTP:</div>
                         <div class="otp-container" style="min-height:35px; display:flex; align-items:center;">${otpDisplay}</div>
                         <div class="btn-grid-4">
@@ -747,9 +755,11 @@
                 const j = await res.json();
                 if(j.success) {
                     if(action === 'cancel' || action === 'finish' || action === 'replace') { 
-                        // Hapus dari Firebase juga
+                        // Hapus sinkronisasi di Cloud dan Lokal
                         dbNotes.ref('notes/xurel/sms_sync/' + id).remove();
-                        localStorage.removeItem('phone_'+id); localStorage.removeItem('timer_'+id); localStorage.removeItem('price_'+id); 
+                        localStorage.removeItem('phone_'+id); 
+                        localStorage.removeItem('timer_'+id); 
+                        localStorage.removeItem('price_'+id); 
                     }
                     pollSms(); updateSmsBal();
                 } else showModal("Gagal", "Ditolak oleh server.", "alert");
