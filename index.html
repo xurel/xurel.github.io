@@ -95,7 +95,7 @@
 
         .fab { position: fixed; bottom: 25px; right: 25px; width: 60px; height: 60px; background: var(--fb-blue); color: white; border-radius: 50%; display: none; justify-content: center; align-items: center; font-size: 24px; box-shadow: 0 4px 10px rgba(24,119,242,0.4); cursor: pointer; border: none; z-index: 500; }
 
-        /* ================= CSS SMS (BARU) ================= */
+        /* ================= CSS SMS ================= */
         .sms-wrapper { --sms-grn: var(--fb-green); --sms-blu: var(--fb-blue); --sms-org: var(--fb-red); }
         .sms-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .sms-select { padding: 8px; border-radius: 8px; border: 1px solid var(--fb-border); font-weight: bold; outline: none; }
@@ -109,13 +109,13 @@
         
         .order-card { border: 1px solid var(--fb-border); background: white; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         
-        /* Phone Box Baru: Ikon lebih dekat dengan nomor */
+        /* Layout Phone Box Jarak Dekat */
         .phone-box { 
             font-size: 24px; font-weight: bold; font-family: monospace; cursor: pointer; 
-            padding: 10px 0; color: var(--fb-text); display: flex; align-items: center; justify-content: flex-start; gap: 12px; 
+            padding: 10px 0; color: var(--fb-text); display: flex; align-items: center; justify-content: flex-start; gap: 8px; 
             width: 100%;
         }
-        .phone-box i { font-size: 20px; transition: color 0.2s ease; } /* Transisi hanya pada warna */
+        .phone-box i { font-size: 20px; transition: color 0.2s ease; }
         
         .btn-grid-4 { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
         .sms-btn { flex: 1 1 calc(50% - 8px); padding: 12px; border-radius: 8px; font-weight: bold; font-size: 11px; cursor: pointer; border: 1px solid var(--fb-border); background: var(--fb-bg); color: var(--fb-muted); text-transform: uppercase; text-align: center; transition: 0.2s;}
@@ -525,30 +525,19 @@
             navigator.clipboard.writeText(currentNoteRaw).then(() => showModal("Berhasil", "Catatan berhasil disalin ke Papan Klip.", "alert"));
         }
 
-        // ================= 5. LOGIKA SMS (SYNC FIREBASE CLOUD) =================
+        // ================= 5. LOGIKA SMS =================
         const SMS_SERVERS = { "HP1": "https://smscode.aam-zip.workers.dev", "HP2": "https://smscodezip.aam-zip.workers.dev" };
         let currentSmsWorker = ""; let smsInitialized = false; let isSmsLocked = false;
-        
-        let syncSmsData = {};
 
         function initSms() {
             smsInitialized = true; 
-            
-            // Listener sinkronisasi waktu beli ke Firebase Cloud (Anti-reset antar perangkat)
-            dbNotes.ref('notes/xurel/sms_sync').on('value', snap => {
-                syncSmsData = snap.val() || {};
-                updateSmsTimers();
-                if (document.getElementById('sms-active-orders').children.length > 0) {
-                    pollSms(); // Update ulang agar sinkron dengan Cloud
-                }
-            });
-
             const select = document.getElementById('sms-server');
             select.innerHTML = Object.keys(SMS_SERVERS).map(k => `<option value="${SMS_SERVERS[k]}">${k}</option>`).join('');
             isSmsLocked = localStorage.getItem('xurel_locked') === 'true';
             const savedServer = localStorage.getItem('xurel_selected_hp');
             if(savedServer && SMS_SERVERS[savedServer]) { currentSmsWorker = SMS_SERVERS[savedServer]; select.value = currentSmsWorker; } 
             else { currentSmsWorker = SMS_SERVERS["HP1"]; }
+            
             applySmsLockUI(); refreshSms(); setInterval(pollSms, 5000); setInterval(updateSmsTimers, 1000);
         }
 
@@ -599,20 +588,11 @@
                 const j = await res.json();
                 if(j.success) {
                     const o = j.data.orders[0]; 
-                    const timerExp = Date.now() + (20*60000);
                     
-                    // Simpan di Lokal HP yang dipakai membeli
+                    // Simpan di Local Storage HP yang membeli
                     localStorage.setItem('phone_'+o.id, o.phone_number); 
                     localStorage.setItem('price_'+o.id, price);
-                    localStorage.setItem('timer_'+o.id, timerExp);
                     
-                    // Simpan ke Cloud (Agar tidak ngulang saat pindah perangkat)
-                    dbNotes.ref('notes/xurel/sms_sync/' + o.id).set({
-                        phone: o.phone_number || '',
-                        price: price,
-                        timer: timerExp
-                    });
-
                     pollSms(); updateSmsBal();
                 } else showModal("Gagal", j.error.message || "Gagal memesan stok.", "alert");
             } catch(e){}
@@ -622,18 +602,15 @@
             try { const res = await fetch(`${currentSmsWorker}/get-active`); const j = await res.json(); if(j.success) renderSmsOrders(j.data); } catch(e) {}
         }
 
-        // FUNGSI COPY SMS - Tanpa popup, dengan Ikon Centang Lingkaran (fa-circle-check)
+        // FUNGSI COPY SMS: Tanpa Animasi Mengecil, Centang Bulat Hijau (fa-circle-check)
         function copyPhoneNumber(txt, iconId) {
             if(txt.includes('Mencari')) return;
             navigator.clipboard.writeText(txt);
             
             const icon = document.getElementById(iconId);
             if(icon) {
-                // Ikon berubah jadi centang hijau bulat
                 icon.className = "fa-solid fa-circle-check";
                 icon.style.color = "var(--fb-green)";
-                
-                // Kembali ke ikon awal secara mulus setelah 1.5 detik
                 setTimeout(() => { 
                     icon.className = "fa-regular fa-copy";
                     icon.style.color = "var(--fb-muted)";
@@ -647,28 +624,30 @@
             if(!orders || !orders.length) return;
             
             orders.forEach(o => {
-                const fbData = syncSmsData[o.id] || {};
+                const phone = o.phone || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
+                if(o.phone && !localStorage.getItem('phone_'+o.id)) localStorage.setItem('phone_'+o.id, o.phone);
                 
-                const phone = fbData.phone || o.phone || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
-                if(phone !== 'Mencari Nomor...') localStorage.setItem('phone_'+o.id, phone);
+                const serverPrice = o.price || o.cost || localStorage.getItem('price_' + o.id);
+                if(serverPrice) localStorage.setItem('price_' + o.id, serverPrice);
                 
-                const savedPrice = fbData.price || o.price || o.cost || localStorage.getItem('price_' + o.id);
-                if(savedPrice) localStorage.setItem('price_' + o.id, savedPrice);
+                // LOGIKA SINKRONISASI ONLINE (Membaca API Worker Langsung)
+                let expireTime = 0;
                 
-                // SISTEM PENARIKAN WAKTU DARI CLOUD
-                let expireTime = fbData.timer;
-                if (expireTime) {
-                    // Kalau Cloud sudah mencatat waktu aslinya, sinkronkan ke Lokal
-                    localStorage.setItem('timer_' + o.id, expireTime); 
-                } else {
-                    // Jika belum ada di Cloud, cari di Lokal
+                // 1. Ambil waktu pembuatan dari mesin API (Ini yang bikin sync jalan)
+                if (o.expires_at) expireTime = new Date(o.expires_at).getTime();
+                else if (o.created_at) expireTime = new Date(o.created_at).getTime() + (20 * 60000);
+                else if (o.time) expireTime = new Date(o.time).getTime() + (20 * 60000);
+                else if (o.start_time) expireTime = new Date(o.start_time).getTime() + (20 * 60000);
+                
+                // 2. Jika Server tidak beri waktu, gunakan Lokal
+                if (!expireTime || isNaN(expireTime) || expireTime === 0) {
                     expireTime = localStorage.getItem('timer_' + o.id);
                     if (!expireTime) {
-                        // Hanya buat waktu baru jika ini order yang benar-benar asing (mencegah eror blank)
-                        expireTime = Date.now() + (20 * 60 * 1000);
-                        localStorage.setItem('timer_' + o.id, expireTime);
+                        expireTime = Date.now() + (20 * 60000); // 20 Menit
                     }
                 }
+                
+                localStorage.setItem('timer_' + o.id, expireTime); // Amankan di cache HP
                 
                 const endTimeStr = expireTime; 
                 let passed2Mins = false;
@@ -676,7 +655,7 @@
 
                 const resendState = o.otp_code ? '' : 'disabled'; const cancelReplaceState = passed2Mins ? '' : 'disabled';
                 let otpDisplay = o.otp_code ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp_code}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
-                const priceDisplay = savedPrice ? parseInt(savedPrice).toLocaleString('id-ID') : '...';
+                const priceDisplay = serverPrice ? parseInt(serverPrice).toLocaleString('id-ID') : '...';
 
                 const existingCard = document.getElementById('order-' + o.id);
                 if (existingCard) {
@@ -684,7 +663,7 @@
                     if (phoneBoxSpan && phoneBoxSpan.innerText !== phone && phone !== 'Mencari Nomor...') phoneBoxSpan.innerText = phone; 
                     
                     const otpContainer = existingCard.querySelector('.otp-container'); if (otpContainer.innerHTML.trim() !== otpDisplay.trim()) otpContainer.innerHTML = otpDisplay;
-                    const priceBox = existingCard.querySelector('.price-box'); if (priceBox && priceBox.innerText.includes('...') && savedPrice) priceBox.innerText = `Rp ${priceDisplay}`;
+                    const priceBox = existingCard.querySelector('.price-box'); if (priceBox && priceBox.innerText.includes('...') && serverPrice) priceBox.innerText = `Rp ${priceDisplay}`;
                     if (o.otp_code) {
                         const btnDone = existingCard.querySelector('.btn-done'); if(btnDone && btnDone.disabled) { btnDone.disabled = false; btnDone.style.color = "var(--fb-green)"; btnDone.style.borderColor = "var(--fb-green)"; btnDone.style.background = "#e6f4ea"; }
                         const btnResend = existingCard.querySelector('.btn-resend'); if(btnResend && btnResend.disabled) btnResend.disabled = false;
@@ -709,6 +688,7 @@
                         
                         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:2px;">HARGA BELI:</div>
                         <div class="price-box" style="font-size:16px; font-weight:bold; color:var(--fb-red); font-family:monospace; margin-bottom:15px;">Rp ${priceDisplay}</div>
+                        
                         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px;">KODE OTP:</div>
                         <div class="otp-container" style="min-height:35px; display:flex; align-items:center;">${otpDisplay}</div>
                         <div class="btn-grid-4">
@@ -754,13 +734,7 @@
                 const res = await fetch(`${currentSmsWorker}/order-action`, { method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({id, action}) });
                 const j = await res.json();
                 if(j.success) {
-                    if(action === 'cancel' || action === 'finish' || action === 'replace') { 
-                        // Hapus sinkronisasi di Cloud dan Lokal
-                        dbNotes.ref('notes/xurel/sms_sync/' + id).remove();
-                        localStorage.removeItem('phone_'+id); 
-                        localStorage.removeItem('timer_'+id); 
-                        localStorage.removeItem('price_'+id); 
-                    }
+                    if(action === 'cancel' || action === 'finish' || action === 'replace') { localStorage.removeItem('phone_'+id); localStorage.removeItem('timer_'+id); localStorage.removeItem('price_'+id); }
                     pollSms(); updateSmsBal();
                 } else showModal("Gagal", "Ditolak oleh server.", "alert");
             } catch(e){}
