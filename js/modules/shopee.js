@@ -2,7 +2,6 @@ import { db } from './firebase.js';
 import { showModal, closeModal } from './ui.js';
 
 let shopeeDataCache = {}; 
-let orderedShopee = [];
 let userAdmin = null;
 
 window.addEventListener('authStateChanged', (e) => { 
@@ -66,34 +65,14 @@ export async function deleteShopee(key) {
     }
 }
 
-// Fitur Swap (Geser Naik / Turun)
-export function moveShopee(index, direction) {
-    if (direction === 'up' && index > 0) {
-        tukarPosisi(orderedShopee[index], orderedShopee[index - 1]);
-    } else if (direction === 'down' && index < orderedShopee.length - 1) {
-        tukarPosisi(orderedShopee[index], orderedShopee[index + 1]);
-    }
-}
-
-function tukarPosisi(itemA, itemB) {
-    // Menukar nilai Timestamp di Database agar posisinya berbalik
-    let timeA = itemA.createdAt || Date.now();
-    let timeB = itemB.createdAt || Date.now() - 1000;
-    
-    if(timeA === timeB) { timeA += 1; timeB -= 1; }
-
-    db.ref('linkshopee/'+itemA.key).update({ createdAt: timeB });
-    db.ref('linkshopee/'+itemB.key).update({ createdAt: timeA });
-}
-
 function renderShopee() {
     const container = document.getElementById('shopee-container'); 
     container.innerHTML = "";
     const colors = ['#e41e3f', '#1877f2', '#8e44ad', '#f39c12', '#2ecc71', '#1abc9c', '#d35400'];
     const isAdmin = !!userAdmin;
-    
-    // Urutkan Array berdasarkan Waktu (Yang terbaru di atas)
-    orderedShopee = Object.keys(shopeeDataCache).map(k => ({ key: k, ...shopeeDataCache[k] }));
+
+    // Mengurutkan data (Yang terbaru di atas)
+    let orderedShopee = Object.keys(shopeeDataCache).map(k => ({ key: k, ...shopeeDataCache[k] }));
     orderedShopee.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
     orderedShopee.forEach((data, idx) => {
@@ -108,8 +87,6 @@ function renderShopee() {
         if(isAdmin) {
             adminBtns = `
             <div class="admin-controls">
-                ${idx > 0 ? `<button class="btn-ctrl" onclick="moveShopee(${idx}, 'up')" title="Naik"><i class="fa-solid fa-arrow-up" style="font-size:12px;"></i></button>` : ''}
-                ${idx < orderedShopee.length - 1 ? `<button class="btn-ctrl" onclick="moveShopee(${idx}, 'down')" title="Turun"><i class="fa-solid fa-arrow-down" style="font-size:12px;"></i></button>` : ''}
                 <button class="btn-ctrl" onclick="openShopeeModal('${data.key}')" title="Edit"><i class="fa-solid fa-pen" style="font-size:12px;"></i></button>
                 <button class="btn-ctrl" style="color:var(--fb-red)" onclick="deleteShopee('${data.key}')" title="Hapus"><i class="fa-solid fa-trash" style="font-size:12px;"></i></button>
             </div>`;
@@ -132,4 +109,4 @@ export function copyShopeeLink(event, url, btnElement) {
         const originalIcon = btnElement.innerHTML; btnElement.innerHTML = '<i class="fa-solid fa-check" style="color:var(--fb-green);"></i>';
         setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
     }).catch(() => showModal("Gagal", "Perangkat tidak mendukung fitur salin otomatis.", "alert"));
-}
+                }
