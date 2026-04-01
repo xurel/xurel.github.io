@@ -1,21 +1,20 @@
-export function generateName() {
+export async function generateName() {
     try {
-        // Mengambil Faker dari global window agar terbaca di dalam Modul
-        const faker = window.faker;
+        const fakerObj = window.faker;
         
-        if (!faker) {
-            alert("Sistem pengacak data sedang dimuat, silakan coba lagi dalam beberapa detik.");
+        if(!fakerObj) {
+            alert("Sistem pengacak data sedang dimuat, silakan coba lagi.");
             return;
         }
 
-        faker.locale = "id_ID";
-        const nama = faker.name.findName();
-        const noHp = faker.phone.phoneNumber('08##########'); 
-        const provinsi = faker.address.state().toUpperCase();
-        const kota = faker.address.city().toUpperCase();
-        const jalan = faker.address.streetName().toUpperCase();
+        fakerObj.locale = "id_ID";
+        const nama = fakerObj.name.findName();
+        const noHp = fakerObj.phone.phoneNumber('08##########');
+        const provinsi = fakerObj.address.state().toUpperCase();
+        const kota = fakerObj.address.city().toUpperCase();
+        const jalan = fakerObj.address.streetName().toUpperCase();
         
-        const daftarPatokan = ["Samping Masjid", "Depan Gereja", "Dekat SMA", "Sebelah SD", "Belakang Pasar", "Depan Alfamart", "Samping Indomaret"];
+        const daftarPatokan = ["Samping Masjid", "Depan Gereja", "Dekat SMA", "Sebelah SD", "Belakang Pasar", "Depan Alfamart", "Samping Indomaret", "Dekat Balai Desa"];
         const patokanAcak = daftarPatokan[Math.floor(Math.random() * daftarPatokan.length)].toUpperCase();
         
         const hasilLengkap = `${nama}, ${noHp}, ${provinsi}, ${kota}, ${jalan} (${patokanAcak})`;
@@ -23,14 +22,42 @@ export function generateName() {
         const outputEl = document.getElementById('genNameOutput');
         if (outputEl) outputEl.value = hasilLengkap; 
         
-        if (navigator.clipboard && window.isSecureContext) {
-            navigator.clipboard.writeText(hasilLengkap);
-        } else if (outputEl) {
-            outputEl.select();
+        // ==========================================
+        // SISTEM AUTO-COPY ANTI-GAGAL (KHUSUS HP)
+        // ==========================================
+        try {
+            // 1. Mencoba cara modern terlebih dahulu
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(hasilLengkap);
+            } else {
+                throw new Error("Gunakan cara paksa (fallback)");
+            }
+        } catch (err) {
+            // 2. Cara paksa menggunakan Invisible Textarea (Trik Android/iOS)
+            const textAreaBayangan = document.createElement("textarea");
+            textAreaBayangan.value = hasilLengkap;
+            
+            // Cegah layar HP melompat/scroll ke bawah
+            textAreaBayangan.style.position = "fixed"; 
+            textAreaBayangan.style.top = "0";
+            textAreaBayangan.style.left = "0";
+            
+            // Sembunyikan dari layar
+            textAreaBayangan.style.opacity = "0"; 
+            
+            document.body.appendChild(textAreaBayangan);
+            
+            // Fokus dan Salin
+            textAreaBayangan.focus();
+            textAreaBayangan.select();
             document.execCommand('copy');
-            window.getSelection().removeAllRanges(); 
+            
+            // Hapus kembali area bayangan
+            document.body.removeChild(textAreaBayangan);
         }
+        // ==========================================
         
+        // Animasi Tombol
         const btn = document.getElementById('btn-gen'); 
         if (btn) {
             btn.innerHTML = '<i class="fa-solid fa-check"></i> Disalin!'; 
@@ -42,8 +69,7 @@ export function generateName() {
         }
 
     } catch (err) {
-        console.error("Error saat mengacak data:", err);
-        // Menampilkan pesan error asli agar lebih mudah dilacak jika terjadi lagi
+        console.error("Error Detail:", err);
         alert("Gagal mengacak data. Error: " + err.message);
     }
 }
