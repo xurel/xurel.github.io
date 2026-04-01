@@ -59,7 +59,7 @@ input, textarea { user-select: auto !important; pointer-events: auto !important;
 
 .shopee-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
 .shopee-item-wrapper { display: flex; border-radius: 10px; overflow: hidden; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-.shopee-copy-btn { width: 50px; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; cursor: pointer; transition: 0.2s; }
+.shopee-copy-btn { width: 85px; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; cursor: pointer; transition: 0.2s; }
 .shopee-copy-btn:hover { background: rgba(0,0,0,0.3); }
 .shopee-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px 10px; color: white; text-decoration: none; font-weight: 600; text-align: center; gap: 5px; min-height: 85px;}
 .shopee-details { display: flex; gap: 5px; font-size: 11px; }
