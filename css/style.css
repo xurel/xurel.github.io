@@ -126,3 +126,35 @@ input, textarea { user-select: auto !important; pointer-events: auto !important;
 /* Tombol Konfirmasi Diperbesar */
 .m-btn { padding: 14px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; border: none; margin-left: 8px; transition: 0.2s; text-transform: uppercase; }
 .m-btn:hover { opacity: 0.8; }
+
+/* ================= RESPONSIVE LAYOUT (KHUSUS HP) ================= */
+@media screen and (max-width: 600px) {
+    /* Mengecilkan lebar tombol menu atas agar muat 4 tombol di HP */
+    .nav-btn { 
+        width: 65px; 
+        font-size: 18px; 
+    }
+    .nav-tabs-center { 
+        gap: 2px; 
+    }
+    .nav-left, .nav-right { 
+        width: 40px; 
+    }
+
+    /* Membuat form "Acak Data" menyusun ke bawah di layar kecil */
+    .generate-box { 
+        flex-direction: column; 
+    }
+    .generate-box button { 
+        width: 100%; 
+    }
+
+    /* Menyesuaikan grid agar pas di layar HP yang sempit */
+    .shopee-grid { 
+        grid-template-columns: 1fr; 
+    }
+    .notes-grid { 
+        grid-template-columns: repeat(2, 1fr); 
+        gap: 8px; 
+    }
+}
