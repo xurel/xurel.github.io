@@ -51,7 +51,6 @@ export function saveShopee() {
         if (key) {
             db.ref('linkshopee/'+key).update(data).then(() => closeModal('modal-shopee-form'));
         } else {
-            data.createdAt = Date.now();
             db.ref('linkshopee').push(data).then(() => closeModal('modal-shopee-form'));
         }
     } else {
@@ -71,9 +70,10 @@ function renderShopee() {
     const colors = ['#e41e3f', '#1877f2', '#8e44ad', '#f39c12', '#2ecc71', '#1abc9c', '#d35400'];
     const isAdmin = !!userAdmin;
 
-    // Mengurutkan data (Yang terbaru di atas)
+    // KUNCI PERBAIKAN URUTAN: Mengurutkan menggunakan ID Unik Firebase
+    // localeCompare akan memastikan urutan abjad/angka selalu menaruh data ter-BARU di paling ATAS
     let orderedShopee = Object.keys(shopeeDataCache).map(k => ({ key: k, ...shopeeDataCache[k] }));
-    orderedShopee.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    orderedShopee.sort((a, b) => b.key.localeCompare(a.key));
 
     orderedShopee.forEach((data, idx) => {
         const wrapper = document.createElement('div');
@@ -109,4 +109,4 @@ export function copyShopeeLink(event, url, btnElement) {
         const originalIcon = btnElement.innerHTML; btnElement.innerHTML = '<i class="fa-solid fa-check" style="color:var(--fb-green);"></i>';
         setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
     }).catch(() => showModal("Gagal", "Perangkat tidak mendukung fitur salin otomatis.", "alert"));
-                }
+}
