@@ -1,14 +1,19 @@
 import { db } from './firebase.js';
-import { showModal } from './ui.js';
+import { showModal, closeModal } from './ui.js';
 
 let shopeeDataCache = {}; 
-let editingShopeeKey = null;
+let orderedShopee = [];
 let userAdmin = null;
 
-// Mendengarkan perubahan login dari main.js
-window.addEventListener('authStateChanged', (e) => { userAdmin = e.detail; renderShopee(); });
+window.addEventListener('authStateChanged', (e) => { 
+    userAdmin = e.detail; 
+    renderShopee(); 
+});
 
-db.ref('linkshopee').on('value', snap => { shopeeDataCache = snap.val() || {}; renderShopee(); });
+db.ref('linkshopee').on('value', snap => { 
+    shopeeDataCache = snap.val() || {}; 
+    renderShopee(); 
+});
 
 export function formatRupiah(el) {
     let angka = el.value.replace(/[^,\d]/g, '').toString(); let split = angka.split(','); let sisa = split[0].length % 3;
@@ -17,49 +22,110 @@ export function formatRupiah(el) {
     el.value = rupiah ? 'Rp ' + rupiah : '';
 }
 
-export async function addShopeeMenu() {
-    const t = document.getElementById('shopee-title').value; const u = document.getElementById('shopee-url').value;
-    const p = document.getElementById('shopee-price').value; const s = document.getElementById('shopee-status').value;
+export function openShopeeModal(key = null) {
+    document.getElementById('shopee-edit-key').value = key || "";
+    if (key && shopeeDataCache[key]) {
+        document.getElementById('modal-shopee-title').innerText = "Edit Link Shopee";
+        document.getElementById('shopee-title').value = shopeeDataCache[key].title || "";
+        document.getElementById('shopee-url').value = shopeeDataCache[key].url || "";
+        document.getElementById('shopee-price').value = shopeeDataCache[key].price || "";
+        document.getElementById('shopee-status').value = shopeeDataCache[key].status || "";
+    } else {
+        document.getElementById('modal-shopee-title').innerText = "Tambah Link Shopee";
+        document.getElementById('shopee-title').value = "";
+        document.getElementById('shopee-url').value = "";
+        document.getElementById('shopee-price').value = "";
+        document.getElementById('shopee-status').value = "";
+    }
+    document.getElementById('modal-shopee-form').classList.add('active');
+}
+
+export function saveShopee() {
+    const key = document.getElementById('shopee-edit-key').value;
+    const t = document.getElementById('shopee-title').value; 
+    const u = document.getElementById('shopee-url').value;
+    const p = document.getElementById('shopee-price').value; 
+    const s = document.getElementById('shopee-status').value;
+    
     if(t && u) {
-        db.ref('linkshopee').push({ title: t, url: u, price: p, status: s, createdAt: Date.now() }).then(() => {
-            document.getElementById('shopee-title').value = ""; document.getElementById('shopee-url').value = "";
-            document.getElementById('shopee-price').value = ""; document.getElementById('shopee-status').value = "";
-        });
-    } else showModal("Peringatan", "Nama Produk & URL wajib diisi!", "alert");
+        const data = { title: t, url: u, price: p, status: s };
+        if (key) {
+            db.ref('linkshopee/'+key).update(data).then(() => closeModal('modal-shopee-form'));
+        } else {
+            data.createdAt = Date.now();
+            db.ref('linkshopee').push(data).then(() => closeModal('modal-shopee-form'));
+        }
+    } else {
+        showModal("Peringatan", "Nama Produk & URL wajib diisi!", "alert");
+    }
+}
+
+export async function deleteShopee(key) { 
+    if(await showModal("Hapus Link", "Yakin ingin menghapus link Shopee ini?", "danger")) {
+        db.ref('linkshopee/'+key).remove(); 
+    }
+}
+
+// Fitur Swap (Geser Naik / Turun)
+export function moveShopee(index, direction) {
+    if (direction === 'up' && index > 0) {
+        tukarPosisi(orderedShopee[index], orderedShopee[index - 1]);
+    } else if (direction === 'down' && index < orderedShopee.length - 1) {
+        tukarPosisi(orderedShopee[index], orderedShopee[index + 1]);
+    }
+}
+
+function tukarPosisi(itemA, itemB) {
+    // Menukar nilai Timestamp di Database agar posisinya berbalik
+    let timeA = itemA.createdAt || Date.now();
+    let timeB = itemB.createdAt || Date.now() - 1000;
+    
+    if(timeA === timeB) { timeA += 1; timeB -= 1; }
+
+    db.ref('linkshopee/'+itemA.key).update({ createdAt: timeB });
+    db.ref('linkshopee/'+itemB.key).update({ createdAt: timeA });
 }
 
 function renderShopee() {
-    const container = document.getElementById('shopee-container'); container.innerHTML = "";
+    const container = document.getElementById('shopee-container'); 
+    container.innerHTML = "";
     const colors = ['#e41e3f', '#1877f2', '#8e44ad', '#f39c12', '#2ecc71', '#1abc9c', '#d35400'];
+    const isAdmin = !!userAdmin;
     
-    Object.keys(shopeeDataCache).reverse().forEach((key, idx) => {
-        const data = shopeeDataCache[key]; const isAdmin = !!userAdmin;
+    // Urutkan Array berdasarkan Waktu (Yang terbaru di atas)
+    orderedShopee = Object.keys(shopeeDataCache).map(k => ({ key: k, ...shopeeDataCache[k] }));
+    orderedShopee.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+    orderedShopee.forEach((data, idx) => {
         const wrapper = document.createElement('div');
+        wrapper.className = 'shopee-item-wrapper'; 
+        wrapper.style.background = colors[idx % colors.length];
         
-        if (isAdmin && editingShopeeKey === key) {
-            wrapper.className = 'content-card'; wrapper.style.padding = '10px'; wrapper.style.marginBottom = '0';
-            wrapper.innerHTML = `
-                <input id="ed-t-${key}" class="form-input" value="${data.title}">
-                <input id="ed-u-${key}" class="form-input" value="${data.url}">
-                <button class="btn-primary" onclick="saveEditShopee('${key}')">Simpan</button>`;
-        } else {
-            wrapper.className = 'shopee-item-wrapper'; wrapper.style.background = colors[idx % colors.length];
-            let st = data.status ? `<span class="badge-status">${data.status}</span>` : ''; let pr = data.price ? `<span class="badge-status">${data.price}</span>` : '';
-            wrapper.innerHTML = `
-                <div class="shopee-copy-btn" onclick="copyShopeeLink(event, '${data.url}', this)" title="Salin Link"><i class="fa-solid fa-copy"></i></div>
-                <a href="${data.url}" target="_blank" class="shopee-item"><span>${data.title}</span><div class="shopee-details">${st}${pr}</div></a>
-                ${isAdmin ? `<div class="admin-controls"><button class="btn-ctrl" onclick="editingShopeeKey='${key}'; window.dispatchEvent(new Event('renderShopeeReq'));"><i class="fa-solid fa-pen" style="font-size:12px;"></i></button><button class="btn-ctrl" style="color:var(--fb-red)" onclick="deleteShopee('${key}')"><i class="fa-solid fa-trash" style="font-size:12px;"></i></button></div>` : ''}`;
+        let st = data.status ? `<span class="badge-status">${data.status}</span>` : ''; 
+        let pr = data.price ? `<span class="badge-status">${data.price}</span>` : '';
+        
+        let adminBtns = '';
+        if(isAdmin) {
+            adminBtns = `
+            <div class="admin-controls">
+                ${idx > 0 ? `<button class="btn-ctrl" onclick="moveShopee(${idx}, 'up')" title="Naik"><i class="fa-solid fa-arrow-up" style="font-size:12px;"></i></button>` : ''}
+                ${idx < orderedShopee.length - 1 ? `<button class="btn-ctrl" onclick="moveShopee(${idx}, 'down')" title="Turun"><i class="fa-solid fa-arrow-down" style="font-size:12px;"></i></button>` : ''}
+                <button class="btn-ctrl" onclick="openShopeeModal('${data.key}')" title="Edit"><i class="fa-solid fa-pen" style="font-size:12px;"></i></button>
+                <button class="btn-ctrl" style="color:var(--fb-red)" onclick="deleteShopee('${data.key}')" title="Hapus"><i class="fa-solid fa-trash" style="font-size:12px;"></i></button>
+            </div>`;
         }
+
+        wrapper.innerHTML = `
+            <div class="shopee-copy-btn" onclick="copyShopeeLink(event, '${data.url}', this)" title="Salin Link"><i class="fa-solid fa-copy"></i></div>
+            <a href="${data.url}" target="_blank" class="shopee-item">
+                <span>${data.title}</span><div class="shopee-details">${st}${pr}</div>
+            </a>
+            ${adminBtns}
+        `;
         container.appendChild(wrapper);
     });
 }
 
-// Trick untuk me-render ulang dari tombol edit
-window.addEventListener('renderShopeeReq', renderShopee);
-window.editingShopeeKey = null; // Setel ke window agar tombol HTML bisa memodifikasinya jika diperlukan.
-
-export function saveEditShopee(key) { db.ref('linkshopee/'+key).update({ title: document.getElementById(`ed-t-${key}`).value, url: document.getElementById(`ed-u-${key}`).value }).then(() => { editingShopeeKey = null; renderShopee(); }); }
-export async function deleteShopee(key) { if(await showModal("Hapus Link", "Yakin ingin menghapus link Shopee ini?", "danger")) db.ref('linkshopee/'+key).remove(); }
 export function copyShopeeLink(event, url, btnElement) {
     event.preventDefault(); event.stopPropagation();
     navigator.clipboard.writeText(url).then(() => {
