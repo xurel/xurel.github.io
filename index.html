@@ -615,11 +615,21 @@
                 const res = await fetch(`${currentSmsWorker}/get-prices`); const json = await res.json();
                 const box = document.getElementById('sms-prices');
                 if (json.success && json.data.length > 0) {
-                    box.innerHTML = json.data.map(i => `
+                    box.innerHTML = json.data.map(i => {
+                        // Membuang kata "Indonesia" (beserta spasi ganda yang mungkin tersisa)
+                        let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
+                        
+                        return `
                         <div class="price-item" onclick="buySms(${i.id}, ${i.price}, '${i.name}')">
-                            <div><div style="font-weight:bold;">${i.name}</div></div>
-                            <div style="font-size:12px; color:var(--fb-muted);"><span style="color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; margin-right: 10px;">Rp ${i.price}</span> ${i.available} stok</div>
-                        </div>`).join('');
+                            <div style="flex: 1; min-width: 0; padding-right: 10px;">
+                                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div>
+                            </div>
+                            <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">Rp ${i.price}</div>
+                                <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
+                            </div>
+                        </div>`;
+                    }).join('');
                 } else box.innerHTML = '<div style="padding:30px; text-align:center;">Kosong</div>';
             } catch (e) {}
         }
