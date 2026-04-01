@@ -41,9 +41,19 @@ export function switchApp(appId, btnElement) {
     document.getElementById('app-' + appId).classList.add('active');
     btnElement.classList.add('active');
     
-    const fab = document.getElementById('fab-note');
-    if(fab) fab.style.display = (appId === 'notes' && document.getElementById('note-lock-section').classList.contains('hidden')) ? 'flex' : 'none';
+    const fabNote = document.getElementById('fab-note');
+    const fabShopee = document.getElementById('fab-shopee');
     
-    // Beritahu modul lain bahwa halaman berubah
+    // Logika Tombol Plus Notes
+    if(fabNote) {
+        fabNote.style.display = (appId === 'notes' && document.getElementById('note-lock-section').classList.contains('hidden')) ? 'flex' : 'none';
+    }
+    
+    // Logika Tombol Plus Shopee
+    if(fabShopee) {
+        const isAdmin = !document.getElementById('logout-form').classList.contains('hidden');
+        fabShopee.style.display = (appId === 'shopee' && isAdmin) ? 'flex' : 'none';
+    }
+    
     window.dispatchEvent(new CustomEvent('appSwitched', { detail: appId }));
-                            }
+}
