@@ -3,7 +3,7 @@ const BOWER_WORKER = "https://nama-worker-anda.workers.dev";
 
 // Fungsi Utama: Mencetak UI dan Menjalankan Sistem
 function jalankanModulSmsBower() {
-    // 1. CARI KANVAS KOSONGNYA (Sesuaikan ID-nya jika berbeda, misal 'app-baru')
+    // 1. CARI KANVAS KOSONGNYA
     const wadahTabBaru = document.getElementById('app-baru'); 
     if (!wadahTabBaru) return;
 
@@ -41,7 +41,7 @@ function jalankanModulSmsBower() {
     initLogikaBower();
 }
 
-// Fungsi Logika API dan Tombol (Persis seperti sebelumnya)
+// Fungsi Logika API dan Tombol
 function initLogikaBower() {
     const selectHp = document.getElementById('pilihHpBower');
     const btnBeliList = document.getElementById('btnBeliListBower');
@@ -63,7 +63,7 @@ function initLogikaBower() {
         const hp = selectHp.value;
         const listTextAsli = btnBeliList.innerHTML; 
         
-        btnBeliList.innerHTML = `<div style="text-align:center; width:100%; font-weight:bold; color:#1a73e8;"><i class="fas fa-spinner fa-spin"></i> Memproses Pesanan...</div>`;
+        btnBeliList.innerHTML = `<div style="text-align:center; width:100%; font-weight:bold; color:#1a73e8;"><i class="fas fa-spinner fa-spin"></i> Memproses...</div>`;
         btnBeliList.style.pointerEvents = "none";
         
         try {
@@ -195,6 +195,9 @@ function initLogikaBower() {
     }
 }
 
-// 4. JALANKAN SEMUANYA SAAT HALAMAN DIMUAT
-document.addEventListener("DOMContentLoaded", jalankanModulSmsBower);
-                               
+// 4. JALANKAN SEMUANYA DENGAN PENGAMAN LOAD
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", jalankanModulSmsBower);
+} else {
+    jalankanModulSmsBower();
+            }
