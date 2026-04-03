@@ -4,9 +4,11 @@ import { showModal } from './ui.js';
 // 1. KONFIGURASI MULTI-PROVIDER & WORKER
 // ==========================================
 const PROVIDERS = {
-    "smscode": { name: "SMSCode", url: "https://sms.aam-zip.workers.dev" },
-    // GANTI LINK DI BAWAH DENGAN WORKER HERO-SMS ANDA YANG BARU:
-    "herosms": { name: "HeroSMS", url: "https://hero-worker.anda.workers.dev" } 
+    // PERUBAHAN NAMA: Menjadi "Code" dan "Hero"
+    "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
+    
+    // GANTI LINK DI BAWAH INI DENGAN LINK WORKER HEROSMS ANDA!
+    "herosms": { name: "Hero", url: "LINK_WORKER_HEROSMS_ANDA_DISINI" } 
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -16,7 +18,6 @@ let currentServerName = "";
 let smsInitialized = false; 
 let isSmsLocked = false;
 
-// State Management
 let activeOrders = [];
 let pollingInterval = null;
 let timerInterval = null;
@@ -46,7 +47,6 @@ async function initSms() {
     smsInitialized = true; 
     const selectHp = document.getElementById('sms-server');
     
-    // MENCIPTAKAN DROPDOWN PROVIDER OTOMATIS
     if (!document.getElementById('sms-provider')) {
         const provSelect = document.createElement('select');
         provSelect.id = 'sms-provider';
@@ -94,7 +94,7 @@ async function loadServersList() {
 }
 
 // ==========================================
-// 3. PENGATURAN UI & PENYESUAIAN HARGA
+// 3. PENGATURAN UI
 // ==========================================
 export async function changeSmsProvider() {
     if(isSmsLocked) return;
@@ -138,8 +138,10 @@ function applySmsLockUI() {
     if(selectHp) selectHp.disabled = isSmsLocked;
     if(selectProv) selectProv.disabled = isSmsLocked;
 
-    if (isSmsLocked) { icon.className = 'fa-solid fa-lock'; icon.style.color = 'var(--fb-red)'; } 
-    else { icon.className = 'fa-solid fa-unlock'; icon.style.color = 'var(--fb-muted)'; }
+    if (icon) {
+        if (isSmsLocked) { icon.className = 'fa-solid fa-lock'; icon.style.color = 'var(--fb-red)'; } 
+        else { icon.className = 'fa-solid fa-unlock'; icon.style.color = 'var(--fb-muted)'; }
+    }
 }
 
 function refreshSms() { 
@@ -153,24 +155,26 @@ async function updateSmsBal() {
     try { 
         const json = await apiCall('/get-balance'); 
         if(json.success) {
-            // PERBAIKAN: Hilangkan Rp untuk HeroSMS
             const bal = json.data.balance;
             document.getElementById('sms-balance').innerText = activeProviderKey === "smscode" 
                 ? `Rp ${bal.toLocaleString('id-ID')}` 
                 : `${bal}`; 
+        } else {
+            document.getElementById('sms-balance').innerText = "Error"; 
         }
-    } catch(e) {}
+    } catch(e) {
+        document.getElementById('sms-balance').innerText = "Offline";
+    }
 }
 
 async function loadSmsPrices() {
+    const box = document.getElementById('sms-prices');
     try {
         const json = await apiCall('/get-prices'); 
-        const box = document.getElementById('sms-prices');
         if (json.success && json.data.length > 0) {
             availableProducts = json.data; 
             box.innerHTML = json.data.map(i => {
                 let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-                // PERBAIKAN: Hilangkan Rp untuk HeroSMS di daftar harga
                 let displayPrice = activeProviderKey === "smscode" ? `Rp ${i.price}` : `${i.price}`;
                 
                 return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}')">
@@ -183,15 +187,20 @@ async function loadSmsPrices() {
                             </div>
                         </div>`;
             }).join('');
-        } else box.innerHTML = '<div style="padding:30px; text-align:center;">Kosong</div>';
-    } catch (e) {}
+        } else {
+            // PERBAIKAN: Jika Server HeroSMS membalas pesan error (Misal BAD_KEY)
+            box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">${json.error?.message || json.error || 'Stok Kosong'}</div>`;
+        }
+    } catch (e) {
+        // PERBAIKAN: Jika URL Worker mati, belum diganti, atau terjadi kendala jaringan
+        box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red);"><b>Gagal Terhubung ke Worker</b><br><small style="color:var(--fb-muted);">${e.message}</small><br><br><small>Pastikan URL Worker dan API Key sudah benar.</small></div>`;
+    }
 }
 
 // ==========================================
 // 4. LOGIKA ORDER & SINKRONISASI
 // ==========================================
 export async function buySms(pid, price, name) {
-    // PERBAIKAN: Modal pop-up tanpa Rp untuk HeroSMS
     const priceText = activeProviderKey === "smscode" ? `Rp ${price}` : `${price}`;
     if(!await showModal("Pesan Baru", `Beli nomor untuk ${name} seharga ${priceText}?`, "confirm")) return;
     
@@ -282,7 +291,6 @@ function renderSmsOrders() {
         let isSuccess = (o.status === "OTP_RECEIVED" || o.otp);
         let otpDisplay = isSuccess ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
         
-        // PERBAIKAN: Menghilangkan parseInt() dan Rp pada HeroSMS agar desimal terlihat utuh
         const priceDisplay = o.price && o.price !== '...' 
             ? (activeProviderKey === "smscode" ? `Rp ${parseInt(o.price).toLocaleString('id-ID')}` : `${o.price}`) 
             : '...';
@@ -393,7 +401,6 @@ function startPollingAndTimer() {
                         return true;
                     }
                     
-                    // Grace Period 30 Detik (Penahan agar pesanan baru tidak seketika lenyap)
                     const timeSinceCreated = Date.now() - (o.cancelUnlockTime - 120000);
                     if (timeSinceCreated < 30000) {
                         return true; 
