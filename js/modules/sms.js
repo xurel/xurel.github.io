@@ -21,11 +21,10 @@ let timerInterval = null;
 let availableProducts = [];
 
 // ==========================================
-// 2. LOGIKA TERPISAH (SMS-CODE vs HERO-SMS)
+// 2. LOGIKA TERPISAH (SINKRONISASI SERVER)
 // ==========================================
 const LogicCode = {
     formatPrice: (price) => `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`,
-    // SMSCode mutlak mewajibkan ID produk berupa Angka, dan menolak parameter ekstra
     buildOrderPayload: (pid, price, op) => ({ product_id: parseInt(pid) }),
     filterActiveOrders: (localOrders, serverOrders) => {
         let stateChanged = false;
@@ -33,8 +32,17 @@ const LogicCode = {
             if (local.isHidden) return true; 
             const sMatch = serverOrders.find(s => String(s.id) === String(local.id));
             if (sMatch) {
-                if (sMatch.otp_code) { local.otp = sMatch.otp_code; local.status = "OTP_RECEIVED"; }
-                stateChanged = true; return true;
+                // Sinkronisasi OTP
+                if (sMatch.otp_code && local.otp !== sMatch.otp_code) { local.otp = sMatch.otp_code; local.status = "OTP_RECEIVED"; stateChanged = true; }
+                // Sinkronisasi Nomor HP (Mengatasi stuck "Mencari Nomor...")
+                if (sMatch.phone_number && local.phone !== sMatch.phone_number) { local.phone = sMatch.phone_number; stateChanged = true; }
+                // Sinkronisasi Timer dari Server
+                if (sMatch.expires_at && local.expiresAt !== sMatch.expires_at) { local.expiresAt = sMatch.expires_at; stateChanged = true; }
+                if (sMatch.created_at) { 
+                    let serverLock = sMatch.created_at + 120000;
+                    if (local.cancelUnlockTime !== serverLock) { local.cancelUnlockTime = serverLock; stateChanged = true; }
+                }
+                return true;
             }
             stateChanged = true; return false; 
         });
@@ -43,8 +51,7 @@ const LogicCode = {
 };
 
 const LogicHero = {
-    formatPrice: (price) => `${price}`, 
-    // HeroSMS mewajibkan string "sh" dan mendukung filter harga & operator
+    formatPrice: (price) => `₽ ${price}`, 
     buildOrderPayload: (pid, price, op) => ({ product_id: String(pid), price: price, operator: op }),
     filterActiveOrders: (localOrders, serverOrders) => {
         let stateChanged = false;
@@ -52,10 +59,15 @@ const LogicHero = {
             if (local.isHidden || local.status === "OTP_RECEIVED") return true; 
             const sMatch = serverOrders.find(s => String(s.id) === String(local.id));
             if (sMatch) {
-                if (sMatch.otp_code) { local.otp = sMatch.otp_code; local.status = "OTP_RECEIVED"; }
-                stateChanged = true; return true;
+                if (sMatch.otp_code && local.otp !== sMatch.otp_code) { local.otp = sMatch.otp_code; local.status = "OTP_RECEIVED"; stateChanged = true; }
+                if (sMatch.phone_number && local.phone !== sMatch.phone_number) { local.phone = sMatch.phone_number; stateChanged = true; }
+                if (sMatch.expires_at && local.expiresAt !== sMatch.expires_at) { local.expiresAt = sMatch.expires_at; stateChanged = true; }
+                if (sMatch.created_at) { 
+                    let serverLock = sMatch.created_at + 120000;
+                    if (local.cancelUnlockTime !== serverLock) { local.cancelUnlockTime = serverLock; stateChanged = true; }
+                }
+                return true;
             }
-            // Toleransi Delay API HeroSMS (30 Detik)
             if (Date.now() - (local.cancelUnlockTime - 120000) < 30000) return true; 
             stateChanged = true; return false; 
         });
@@ -187,7 +199,7 @@ async function loadSmsPrices() {
 }
 
 // ==========================================
-// 4. LOGIKA ORDER (TERPISAH & ANTI CRASH)
+// 4. LOGIKA ORDER (ANTI CRASH)
 // ==========================================
 export async function buySms(pid, price, name) {
     if (activeProviderKey === "herosms") {
@@ -223,7 +235,6 @@ export async function executeBuySms(pid, price, name, operator) {
     }
     
     try {
-        // PERBAIKAN: Payload dipisahkan agar SMSCode tidak Crash
         const payload = getActiveLogic().buildOrderPayload(pid, price, operator);
         const j = await apiCall('/create-order', 'POST', payload);
         
@@ -237,15 +248,14 @@ export async function executeBuySms(pid, price, name, operator) {
             localStorage.setItem(`xurel_lock_${activeProviderKey}_${o.id}`, lockTime);
             
             activeOrders.unshift({
-                id: o.id, productId: pid, phone: o.phone_number, price: price, otp: null, status: "ACTIVE",
+                id: o.id, productId: pid, phone: o.phone_number || 'Mencari Nomor...', price: price, otp: null, status: "ACTIVE",
                 expiresAt: expTime, cancelUnlockTime: lockTime, isAutoCanceling: false, isHidden: false
             });
             startPollingAndTimer(); updateSmsBal(); renderSmsOrders();
             
-            // PERBAIKAN: Delay kecil 150ms agar DOM siap sebelum Auto-Copy bekerja
+            // Auto-Copy Dihapus, hanya scroll ke atas
             setTimeout(() => {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
-                copyPhoneNumber(o.phone_number, `copy-icon-${o.id}`);
             }, 150);
             
         } else { showModal("Gagal", getErrMsg(j), "alert"); refreshSms(); }
@@ -254,7 +264,7 @@ export async function executeBuySms(pid, price, name, operator) {
 window.executeBuySms = executeBuySms;
 
 // ==========================================
-// 5. MANAJEMEN TIMER (STOPWATCH LOKAL)
+// 5. MANAJEMEN TIMER (PRIORITAS SERVER)
 // ==========================================
 async function syncServerOrders() {
     try { 
@@ -266,8 +276,9 @@ async function syncServerOrders() {
                 let price = o.price;
                 if(!price && pid) { const pMatch = availableProducts.find(p => String(p.id) === String(pid)); if (pMatch) price = pMatch.price; }
                 
-                let exp = parseInt(localStorage.getItem(`xurel_exp_${activeProviderKey}_${o.id}`)) || (Date.now() + 20*60000);
-                let lock = parseInt(localStorage.getItem(`xurel_lock_${activeProviderKey}_${o.id}`)) || (Date.now() + 120000);
+                // Prioritas: 1. Timer Server, 2. Timer LocalStorage, 3. Fallback
+                let exp = o.expires_at || parseInt(localStorage.getItem(`xurel_exp_${activeProviderKey}_${o.id}`)) || (Date.now() + 20*60000);
+                let lock = o.created_at ? (o.created_at + 120000) : (parseInt(localStorage.getItem(`xurel_lock_${activeProviderKey}_${o.id}`)) || (Date.now() + 120000));
 
                 return {
                     id: o.id, productId: pid, phone: o.phone_number || 'Mencari Nomor...', price: price, 
@@ -413,7 +424,6 @@ export async function replaceSms(id, pid) {
             localStorage.removeItem(`xurel_exp_${activeProviderKey}_${id}`); 
             localStorage.removeItem(`xurel_lock_${activeProviderKey}_${id}`);
             
-            // PERBAIKAN: Payload dipisahkan agar SMSCode tidak Crash
             const payload = getActiveLogic().buildOrderPayload(pid, orderPrice, "any");
             const n = await apiCall('/create-order', 'POST', payload);
             
@@ -425,15 +435,14 @@ export async function replaceSms(id, pid) {
                 localStorage.setItem(`xurel_lock_${activeProviderKey}_${od.id}`, lock);
                 
                 activeOrders.unshift({
-                    id: od.id, productId: pid, phone: od.phone_number, price: orderPrice || 0,
+                    id: od.id, productId: pid, phone: od.phone_number || 'Mencari Nomor...', price: orderPrice || 0,
                     otp: null, status: "ACTIVE", expiresAt: exp, cancelUnlockTime: lock, isAutoCanceling: false, isHidden: false
                 });
                 startPollingAndTimer(); updateSmsBal(); renderSmsOrders();
                 
-                // PERBAIKAN: Delay kecil 150ms agar ikon siap disalin
+                // Auto-Copy Dihapus, hanya scroll ke atas
                 setTimeout(() => {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
-                    copyPhoneNumber(od.phone_number, `copy-icon-${od.id}`);
                 }, 150);
                 
             } else { showModal("Gagal Pesan Baru", n.error?.message || n.error, "alert"); renderSmsOrders(); updateSmsBal(); }
