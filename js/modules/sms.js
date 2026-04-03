@@ -121,6 +121,7 @@ async function apiCall(endpoint, method = "GET", body = null) {
     const options = { method, headers: { "Content-Type": "application/json", "X-Server-Name": currentServerName } };
     if (body) options.body = JSON.stringify(body);
     const res = await fetch(`${BASE_URL}${endpoint}`, options);
+    // CATATAN PENTING: apiCall ini SUDAH me-return JSON secara otomatis
     return await res.json();
 }
 
@@ -238,7 +239,6 @@ function renderSmsOrders(orders) {
     if(!orders || !orders.length) return;
 
     orders.forEach(o => {
-        // PENARIKAN DATA SUPER AKURAT (Mendukung Format Baru & Lama)
         const serverPhone = o.phone || o.phone_number || o.phoneNumber;
         const phone = serverPhone || localStorage.getItem(`phone_${activeProviderKey}_${o.id}`) || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
         if(serverPhone) localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, serverPhone);
@@ -246,7 +246,6 @@ function renderSmsOrders(orders) {
         const serverPrice = o.price || o.cost || localStorage.getItem(`price_${activeProviderKey}_${o.id}`) || localStorage.getItem('price_'+o.id);
         if(serverPrice) localStorage.setItem(`price_${activeProviderKey}_${o.id}`, serverPrice);
 
-        // LOGIKA TIMER ASLI DARI FILE ANDA (Server Sync Tepat)
         let expireTime = 0;
         if (o.expires_at) {
             expireTime = new Date(o.expires_at).getTime();
@@ -269,7 +268,6 @@ function renderSmsOrders(orders) {
             if (remaining <= 1080) passed2Mins = true; 
         }
 
-        // UI State
         const resendState = o.otp_code ? '' : 'disabled';
         const cancelReplaceState = passed2Mins ? '' : 'disabled';
         let otpDisplay = o.otp_code ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp_code}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
@@ -335,7 +333,7 @@ function renderSmsOrders(orders) {
 function updateSmsTimers() {
     document.querySelectorAll('.sms-timer').forEach(el => {
         const id = el.dataset.id;
-        const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${id}`));
+        const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${id}`)) || parseInt(localStorage.getItem('timer_' + id));
 
         if(end) {
             const diff = Math.max(0, Math.floor((end - Date.now())/1000));
@@ -368,8 +366,8 @@ export async function actSms(action, id) {
     if(!await showModal(title, msg, type)) return;
 
     try {
-        const res = await apiCall('/order-action', 'POST', { id, action: action === 'replace' ? 'cancel' : action });
-        const j = await res.json();
+        // PERBAIKAN BUG: Hanya gunakan apiCall saja karena response sudah berupa JSON otomatis
+        const j = await apiCall('/order-action', 'POST', { id, action: action === 'replace' ? 'cancel' : action });
 
         if(j.success || j.error?.code === 'NOT_FOUND') {
             if(action === 'cancel' || action === 'finish' || action === 'replace') {
@@ -401,6 +399,9 @@ export async function actSms(action, id) {
             }
             pollSms(); updateSmsBal();
         } else { showModal("Gagal", j.error?.message || j.error || "Ditolak oleh server.", "alert"); }
-    } catch(e){ showModal("Error", "Gagal terhubung ke server.", "alert"); }
+    } catch(e){ 
+        console.error(e); // Ini akan mencetak detail error aslinya di console agar lebih transparan
+        showModal("Error", "Gagal terhubung ke server.", "alert"); 
+    }
 }
 window.actSms = actSms;
