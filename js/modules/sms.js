@@ -6,7 +6,7 @@ import { showModal } from './ui.js';
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     // GANTI LINK DI BAWAH INI DENGAN LINK WORKER HEROSMS ANDA!
-    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" } 
+    "herosms": { name: "Hero", url: "https://hero-worker.anda.workers.dev" } 
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -205,7 +205,7 @@ export async function buySms(pid, price, name) {
         if(j.success) { 
             const o = j.data.orders[0]; 
             
-            // Simpan Data Valid dari Worker
+            // Simpan Data Valid dari Worker ke Memori
             const expTime = o.expires_at ? new Date(o.expires_at).getTime() : Date.now() + (20 * 60000);
             const lockTime = o.created_at ? new Date(o.created_at).getTime() + (120 * 1000) : Date.now() + (120 * 1000);
             
@@ -242,7 +242,7 @@ async function syncServerOrders() {
                     if (guess) finalPid = guess.id;
                 }
 
-                // PERBAIKAN: Gunakan waktu ASLI DARI SERVER
+                // GUNAKAN WAKTU ASLI DARI SERVER (Rusia -> WIB)
                 let exp = order.expires_at ? new Date(order.expires_at).getTime() : Date.now() + (20*60*1000);
                 let lock = order.created_at ? new Date(order.created_at).getTime() + 120000 : exp - (18*60000);
 
@@ -338,7 +338,7 @@ function renderSmsOrders() {
 }
 
 // ==========================================
-// 6. POLLING & TIMER SERVER-SYNC
+// 6. POLLING & TIMER (SINKRONISASI AKTIF)
 // ==========================================
 function startPollingAndTimer() {
     if (timerInterval) clearInterval(timerInterval);
@@ -361,7 +361,7 @@ function startPollingAndTimer() {
                 timerElement.style.color = timeLeft < 600000 ? "var(--fb-red)" : "var(--fb-blue)"; 
             }
 
-            // Atur kuncian tombol Batal/Replace berdasarkan waktu
+            // Kunci tombol berdasarkan waktu server yang sudah diterjemahkan
             if(order.cancelUnlockTime - now <= 0 && !order.isHidden) {
                 const orderCard = document.getElementById(`order-${order.id}`);
                 if(orderCard) {
@@ -398,7 +398,7 @@ function startPollingAndTimer() {
                             o.status = "OTP_RECEIVED";
                         }
                         
-                        // PERBAIKAN: Selalu Sinkronkan Waktu dengan Server
+                        // Perbarui waktu dari server setiap polling
                         if (serverMatch.expires_at) o.expiresAt = new Date(serverMatch.expires_at).getTime();
                         if (serverMatch.created_at) o.cancelUnlockTime = new Date(serverMatch.created_at).getTime() + 120000;
                         
