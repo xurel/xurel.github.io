@@ -8,7 +8,7 @@ const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     
     // GANTI LINK DI BAWAH INI DENGAN LINK WORKER HEROSMS ANDA!
-    "herosms": { name: "Hero", url: "LINK_WORKER_HEROSMS_ANDA_DISINI" } 
+    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" } 
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
