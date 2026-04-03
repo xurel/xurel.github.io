@@ -6,7 +6,7 @@ import { showModal } from './ui.js';
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     // GANTI LINK DI BAWAH INI DENGAN LINK WORKER HEROSMS ANDA!
-    "herosms": { name: "Hero", url: "https://hero-worker.anda.workers.dev" } 
+    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" } 
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
