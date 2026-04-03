@@ -5,10 +5,10 @@ import { showModal } from './ui.js';
 // ==========================================
 const PROVIDERS = {
     "smscode": { name: "SMSCode", url: "https://sms.aam-zip.workers.dev" },
-    "herosms": { name: "HeroSMS", url: "https://hero.aam-zip.workers.dev" } // Nanti ganti URL ini dengan Worker HeroSMS Anda
+    // GANTI LINK DI BAWAH DENGAN WORKER HERO-SMS ANDA YANG BARU:
+    "herosms": { name: "HeroSMS", url: "https://hero-worker.anda.workers.dev" } 
 };
 
-// Ambil provider terakhir yang dipilih, default ke smscode
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
 let BASE_URL = PROVIDERS[activeProviderKey].url;
 
@@ -46,7 +46,7 @@ async function initSms() {
     smsInitialized = true; 
     const selectHp = document.getElementById('sms-server');
     
-    // --- Buat Dropdown Provider Otomatis ---
+    // MENCIPTAKAN DROPDOWN PROVIDER OTOMATIS
     if (!document.getElementById('sms-provider')) {
         const provSelect = document.createElement('select');
         provSelect.id = 'sms-provider';
@@ -69,7 +69,6 @@ async function initSms() {
     refreshSms(); 
 }
 
-// Memuat Daftar HP dari Worker yang Aktif
 async function loadServersList() {
     const select = document.getElementById('sms-server');
     select.innerHTML = '<option>Memuat...</option>';
@@ -85,7 +84,6 @@ async function loadServersList() {
         select.innerHTML = fallbackServers.map(k => `<option value="${k}">${k}</option>`).join('');
     }
     
-    // Memori Spesifik agar HP1 smscode tidak tertukar dengan HP1 herosms
     const savedServer = localStorage.getItem(`xurel_hp_${activeProviderKey}`);
     if(savedServer && Array.from(select.options).some(o => o.value === savedServer)) { 
         currentServerName = savedServer; 
@@ -96,7 +94,7 @@ async function loadServersList() {
 }
 
 // ==========================================
-// 3. PENGATURAN UI
+// 3. PENGATURAN UI & PENYESUAIAN HARGA
 // ==========================================
 export async function changeSmsProvider() {
     if(isSmsLocked) return;
@@ -154,7 +152,13 @@ function refreshSms() {
 async function updateSmsBal() {
     try { 
         const json = await apiCall('/get-balance'); 
-        if(json.success) document.getElementById('sms-balance').innerText = `Rp ${json.data.balance.toLocaleString('id-ID')}`; 
+        if(json.success) {
+            // PERBAIKAN: Hilangkan Rp untuk HeroSMS
+            const bal = json.data.balance;
+            document.getElementById('sms-balance').innerText = activeProviderKey === "smscode" 
+                ? `Rp ${bal.toLocaleString('id-ID')}` 
+                : `${bal}`; 
+        }
     } catch(e) {}
 }
 
@@ -166,13 +170,15 @@ async function loadSmsPrices() {
             availableProducts = json.data; 
             box.innerHTML = json.data.map(i => {
                 let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-                // PERBAIKAN: i.id dibungkus tanda kutip agar huruf/string tidak error
+                // PERBAIKAN: Hilangkan Rp untuk HeroSMS di daftar harga
+                let displayPrice = activeProviderKey === "smscode" ? `Rp ${i.price}` : `${i.price}`;
+                
                 return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}')">
                             <div style="flex: 1; min-width: 0; padding-right: 10px;">
                                 <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div>
                             </div>
                             <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">Rp ${i.price}</div>
+                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${displayPrice}</div>
                                 <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
                             </div>
                         </div>`;
@@ -182,12 +188,14 @@ async function loadSmsPrices() {
 }
 
 // ==========================================
-// 4. LOGIKA ORDER (BEBAS PARSE-INT)
+// 4. LOGIKA ORDER & SINKRONISASI
 // ==========================================
 export async function buySms(pid, price, name) {
-    if(!await showModal("Pesan Baru", `Beli nomor untuk ${name} seharga Rp ${price}?`, "confirm")) return;
+    // PERBAIKAN: Modal pop-up tanpa Rp untuk HeroSMS
+    const priceText = activeProviderKey === "smscode" ? `Rp ${price}` : `${price}`;
+    if(!await showModal("Pesan Baru", `Beli nomor untuk ${name} seharga ${priceText}?`, "confirm")) return;
+    
     try {
-        // PERBAIKAN: Tidak menggunakan parseInt lagi
         const j = await apiCall('/create-order', 'POST', { product_id: pid });
         if(j.success) { 
             const o = j.data.orders[0]; 
@@ -273,7 +281,11 @@ function renderSmsOrders() {
     visibleOrders.forEach((o, index) => {
         let isSuccess = (o.status === "OTP_RECEIVED" || o.otp);
         let otpDisplay = isSuccess ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
-        const priceDisplay = o.price && o.price !== '...' ? parseInt(o.price).toLocaleString('id-ID') : '...';
+        
+        // PERBAIKAN: Menghilangkan parseInt() dan Rp pada HeroSMS agar desimal terlihat utuh
+        const priceDisplay = o.price && o.price !== '...' 
+            ? (activeProviderKey === "smscode" ? `Rp ${parseInt(o.price).toLocaleString('id-ID')}` : `${o.price}`) 
+            : '...';
 
         const wait = o.cancelUnlockTime - now;
         let passed2Mins = wait <= 0;
@@ -291,7 +303,7 @@ function renderSmsOrders() {
                     <span style="font-weight:bold; color:var(--fb-muted); font-size:15px;">${displayNumber}.</span>
                     <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${o.id}</span>
                     <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
-                    <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">Rp ${priceDisplay}</span>
+                    <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">${priceDisplay}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:10px;">
                     <i class="fa-regular fa-eye-slash hide-btn-icon" onclick="hideSmsCard(${o.id})" style="color: var(--fb-muted); cursor:pointer; font-size:14px; padding: 5px;" title="Sembunyikan"></i>
@@ -318,7 +330,7 @@ function renderSmsOrders() {
 }
 
 // ==========================================
-// 6. POLLING & TIMER
+// 6. POLLING & TIMER (ANTI-HILANG HEROSMS)
 // ==========================================
 function startPollingAndTimer() {
     if (timerInterval) clearInterval(timerInterval);
@@ -370,6 +382,7 @@ function startPollingAndTimer() {
                 activeOrders = activeOrders.filter(o => {
                     if (o.isHidden) return true; 
                     if (o.status === "OTP_RECEIVED") return true; 
+                    
                     let serverMatch = j.data.find(so => String(so.id) === String(o.id));
                     if (serverMatch) {
                         if (serverMatch.otp_code) {
@@ -379,6 +392,13 @@ function startPollingAndTimer() {
                         }
                         return true;
                     }
+                    
+                    // Grace Period 30 Detik (Penahan agar pesanan baru tidak seketika lenyap)
+                    const timeSinceCreated = Date.now() - (o.cancelUnlockTime - 120000);
+                    if (timeSinceCreated < 30000) {
+                        return true; 
+                    }
+                    
                     stateChanged = true; return false; 
                 });
                 if (stateChanged) { renderSmsOrders(); updateSmsBal(); }
