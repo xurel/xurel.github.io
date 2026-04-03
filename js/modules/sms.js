@@ -1,9 +1,16 @@
 import { showModal } from './ui.js';
 
 // ==========================================
-// 1. KONFIGURASI SINGLE WORKER
+// 1. KONFIGURASI MULTI-PROVIDER & WORKER
 // ==========================================
-const BASE_URL = "https://sms.aam-zip.workers.dev"; 
+const PROVIDERS = {
+    "smscode": { name: "SMSCode", url: "https://sms.aam-zip.workers.dev" },
+    "herosms": { name: "HeroSMS", url: "https://hero.aam-zip.workers.dev" } // Nanti ganti URL ini dengan Worker HeroSMS Anda
+};
+
+// Ambil provider terakhir yang dipilih, default ke smscode
+let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
+let BASE_URL = PROVIDERS[activeProviderKey].url;
 
 let currentServerName = ""; 
 let smsInitialized = false; 
@@ -37,39 +44,87 @@ window.addEventListener('appSwitched', (e) => {
 
 async function initSms() {
     smsInitialized = true; 
+    const selectHp = document.getElementById('sms-server');
+    
+    // --- Buat Dropdown Provider Otomatis ---
+    if (!document.getElementById('sms-provider')) {
+        const provSelect = document.createElement('select');
+        provSelect.id = 'sms-provider';
+        provSelect.className = selectHp.className; 
+        provSelect.style.marginRight = "10px"; 
+        provSelect.style.fontWeight = "bold";
+        provSelect.style.color = "var(--fb-blue)";
+        provSelect.onchange = changeSmsProvider;
+        
+        provSelect.innerHTML = Object.keys(PROVIDERS).map(k => `<option value="${k}">${PROVIDERS[k].name}</option>`).join('');
+        provSelect.value = activeProviderKey;
+        
+        selectHp.parentNode.insertBefore(provSelect, selectHp);
+    }
+    
+    await loadServersList();
+    
+    isSmsLocked = localStorage.getItem('xurel_locked') === 'true';
+    applySmsLockUI(); 
+    refreshSms(); 
+}
+
+// Memuat Daftar HP dari Worker yang Aktif
+async function loadServersList() {
     const select = document.getElementById('sms-server');
-    select.innerHTML = '<option>Memuat Server...</option>';
+    select.innerHTML = '<option>Memuat...</option>';
     
     try {
         const res = await fetch(`${BASE_URL}/api/servers`);
         const data = await res.json();
         if(data.success && data.servers && data.servers.length > 0) {
             select.innerHTML = data.servers.map(k => `<option value="${k}">${k}</option>`).join('');
-        } else {
-            throw new Error("Kosong");
-        }
+        } else { throw new Error("Kosong"); }
     } catch (e) {
         const fallbackServers = ["HP1", "HP2"];
         select.innerHTML = fallbackServers.map(k => `<option value="${k}">${k}</option>`).join('');
     }
     
-    isSmsLocked = localStorage.getItem('xurel_locked') === 'true';
-    const savedServer = localStorage.getItem('xurel_selected_hp');
-    
+    // Memori Spesifik agar HP1 smscode tidak tertukar dengan HP1 herosms
+    const savedServer = localStorage.getItem(`xurel_hp_${activeProviderKey}`);
     if(savedServer && Array.from(select.options).some(o => o.value === savedServer)) { 
         currentServerName = savedServer; 
         select.value = currentServerName; 
     } else { 
         currentServerName = select.options[0].value; 
     }
-    
-    applySmsLockUI(); 
-    refreshSms(); 
 }
 
 // ==========================================
-// 3. PENGATURAN SERVER & UI
+// 3. PENGATURAN UI
 // ==========================================
+export async function changeSmsProvider() {
+    if(isSmsLocked) return;
+    const provSelect = document.getElementById('sms-provider');
+    activeProviderKey = provSelect.value;
+    BASE_URL = PROVIDERS[activeProviderKey].url;
+    localStorage.setItem('xurel_provider', activeProviderKey);
+    
+    activeOrders = []; 
+    document.getElementById('sms-active-orders').innerHTML = '';
+    
+    await loadServersList(); 
+    refreshSms();
+}
+window.changeSmsProvider = changeSmsProvider;
+
+export function changeSmsServer() {
+    if(isSmsLocked) return; 
+    const select = document.getElementById('sms-server');
+    currentServerName = select.value;
+    localStorage.setItem(`xurel_hp_${activeProviderKey}`, currentServerName);
+    
+    activeOrders = []; 
+    document.getElementById('sms-active-orders').innerHTML = '';
+    refreshSms();
+}
+window.changeSmsServer = changeSmsServer;
+
 export function toggleSmsLock() { 
     isSmsLocked = !isSmsLocked; 
     localStorage.setItem('xurel_locked', isSmsLocked); 
@@ -78,24 +133,16 @@ export function toggleSmsLock() {
 window.toggleSmsLock = toggleSmsLock;
 
 function applySmsLockUI() {
-    const select = document.getElementById('sms-server'); 
+    const selectHp = document.getElementById('sms-server'); 
+    const selectProv = document.getElementById('sms-provider'); 
     const icon = document.getElementById('sms-lock-icon'); 
-    select.disabled = isSmsLocked;
+    
+    if(selectHp) selectHp.disabled = isSmsLocked;
+    if(selectProv) selectProv.disabled = isSmsLocked;
+
     if (isSmsLocked) { icon.className = 'fa-solid fa-lock'; icon.style.color = 'var(--fb-red)'; } 
     else { icon.className = 'fa-solid fa-unlock'; icon.style.color = 'var(--fb-muted)'; }
 }
-
-export function changeSmsServer() {
-    if(isSmsLocked) return; 
-    const select = document.getElementById('sms-server');
-    currentServerName = select.value;
-    localStorage.setItem('xurel_selected_hp', currentServerName);
-    
-    activeOrders = []; 
-    document.getElementById('sms-active-orders').innerHTML = '';
-    refreshSms();
-}
-window.changeSmsServer = changeSmsServer;
 
 function refreshSms() { 
     document.getElementById('sms-prices').innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Mengambil Data...</div>'; 
@@ -119,7 +166,8 @@ async function loadSmsPrices() {
             availableProducts = json.data; 
             box.innerHTML = json.data.map(i => {
                 let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-                return `<div class="price-item" onclick="buySms(${i.id}, ${i.price}, '${shortName}')">
+                // PERBAIKAN: i.id dibungkus tanda kutip agar huruf/string tidak error
+                return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}')">
                             <div style="flex: 1; min-width: 0; padding-right: 10px;">
                                 <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div>
                             </div>
@@ -134,36 +182,26 @@ async function loadSmsPrices() {
 }
 
 // ==========================================
-// 4. LOGIKA ORDER & SINKRONISASI
+// 4. LOGIKA ORDER (BEBAS PARSE-INT)
 // ==========================================
 export async function buySms(pid, price, name) {
     if(!await showModal("Pesan Baru", `Beli nomor untuk ${name} seharga Rp ${price}?`, "confirm")) return;
     try {
-        const j = await apiCall('/create-order', 'POST', { product_id: parseInt(pid) });
+        // PERBAIKAN: Tidak menggunakan parseInt lagi
+        const j = await apiCall('/create-order', 'POST', { product_id: pid });
         if(j.success) { 
             const o = j.data.orders[0]; 
-            
-            // PERBAIKAN: Ingat ID Produk ke Memori HP agar aman saat di-refresh
-            localStorage.setItem('xurel_pid_' + o.id, pid);
+            localStorage.setItem(`xurel_pid_${activeProviderKey}_${o.id}`, pid);
             
             activeOrders.unshift({
-                id: o.id,
-                productId: pid,
-                phone: o.phone_number,
-                price: price || o.price || o.cost || 0,
-                otp: null,
-                status: "ACTIVE",
+                id: o.id, productId: pid, phone: o.phone_number, price: price || o.price || o.cost || 0,
+                otp: null, status: "ACTIVE",
                 expiresAt: new Date(o.expires_at || Date.now() + (20 * 60000)).getTime(),
                 cancelUnlockTime: new Date(o.created_at || Date.now()).getTime() + (120 * 1000), 
-                isAutoCanceling: false,
-                isHidden: false
+                isAutoCanceling: false, isHidden: false
             });
-            startPollingAndTimer(); 
-            updateSmsBal(); 
-            renderSmsOrders();
-        } else {
-            showModal("Gagal", getErrMsg(j), "alert");
-        }
+            startPollingAndTimer(); updateSmsBal(); renderSmsOrders();
+        } else { showModal("Gagal", getErrMsg(j), "alert"); }
     } catch(e){}
 }
 window.buySms = buySms;
@@ -177,8 +215,7 @@ async function syncServerOrders() {
                 const exp = order.expires_at ? new Date(order.expires_at).getTime() : Date.now() + (20*60*1000);
                 const cTime = order.created_at ? new Date(order.created_at).getTime() : (exp - (20*60*1000));
                 
-                // PERBAIKAN: Coba cari ID dari server, memori lokal, atau tebak dari harganya
-                let savedPid = localStorage.getItem('xurel_pid_' + order.id);
+                let savedPid = localStorage.getItem(`xurel_pid_${activeProviderKey}_${order.id}`);
                 let finalPid = order.product_id || order.service_id || savedPid || null;
                 let fallbackPrice = order.price || order.cost;
 
@@ -187,27 +224,20 @@ async function syncServerOrders() {
                     if (matchProduct) fallbackPrice = matchProduct.price;
                 }
 
-                // Jika masih tidak ada ID (amnesia parah), tebak dari harganya
                 if (!finalPid && fallbackPrice) {
                     const guess = availableProducts.find(p => String(p.price) === String(fallbackPrice));
                     if (guess) finalPid = guess.id;
                 }
 
                 return {
-                    id: order.id,
-                    productId: finalPid, 
-                    phone: order.phone_number || order.phone || 'Mencari Nomor...',
-                    price: fallbackPrice || '...',
-                    otp: order.otp_code,
+                    id: order.id, productId: finalPid, phone: order.phone_number || order.phone || 'Mencari Nomor...',
+                    price: fallbackPrice || '...', otp: order.otp_code,
                     status: order.otp_code ? "OTP_RECEIVED" : "ACTIVE",
-                    expiresAt: exp,
-                    cancelUnlockTime: cTime + (120*1000),
-                    isAutoCanceling: false,
-                    isHidden: false
+                    expiresAt: exp, cancelUnlockTime: cTime + (120*1000),
+                    isAutoCanceling: false, isHidden: false
                 };
             });
-            startPollingAndTimer();
-            renderSmsOrders();
+            startPollingAndTimer(); renderSmsOrders();
         } 
     } catch(e) {}
 }
@@ -228,10 +258,7 @@ window.copyPhoneNumber = copyPhoneNumber;
 // ==========================================
 export function hideSmsCard(id) {
     const orderIndex = activeOrders.findIndex(o => o.id === id);
-    if (orderIndex > -1) {
-        activeOrders[orderIndex].isHidden = true;
-        renderSmsOrders(); 
-    }
+    if (orderIndex > -1) { activeOrders[orderIndex].isHidden = true; renderSmsOrders(); }
 }
 window.hideSmsCard = hideSmsCard;
 
@@ -241,7 +268,6 @@ function renderSmsOrders() {
     
     const visibleOrders = activeOrders.filter(o => !o.isHidden);
     if(!visibleOrders || visibleOrders.length === 0) return;
-    
     const now = Date.now();
 
     visibleOrders.forEach((o, index) => {
@@ -267,7 +293,6 @@ function renderSmsOrders() {
                     <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
                     <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">Rp ${priceDisplay}</span>
                 </div>
-                
                 <div style="display:flex; align-items:center; gap:10px;">
                     <i class="fa-regular fa-eye-slash hide-btn-icon" onclick="hideSmsCard(${o.id})" style="color: var(--fb-muted); cursor:pointer; font-size:14px; padding: 5px;" title="Sembunyikan"></i>
                     <span class="sms-timer" id="timer-${o.id}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
@@ -307,11 +332,7 @@ function startPollingAndTimer() {
             const timeLeft = order.expiresAt - now;
             const timerElement = document.getElementById(`timer-${order.id}`);
             
-            if (timeLeft <= 0) { 
-                activeOrders.splice(index, 1); 
-                needsRender = true; 
-                return; 
-            }
+            if (timeLeft <= 0) { activeOrders.splice(index, 1); needsRender = true; return; }
             
             if (timerElement && !order.isHidden) {
                 const m = Math.floor((timeLeft / 1000 / 60) % 60);
@@ -331,8 +352,7 @@ function startPollingAndTimer() {
             }
 
             if (timeLeft <= 600000 && !order.otp && !order.isAutoCanceling) {
-                order.isAutoCanceling = true; 
-                actSms('cancel', order.id, true); 
+                order.isAutoCanceling = true; actSms('cancel', order.id, true); 
                 if(!order.isHidden) needsRender = true;
             }
         });
@@ -347,12 +367,10 @@ function startPollingAndTimer() {
             const j = await apiCall('/get-active'); 
             if(j.success) {
                 let stateChanged = false;
-
                 activeOrders = activeOrders.filter(o => {
                     if (o.isHidden) return true; 
                     if (o.status === "OTP_RECEIVED") return true; 
-                    
-                    let serverMatch = j.data.find(so => so.id === o.id);
+                    let serverMatch = j.data.find(so => String(so.id) === String(o.id));
                     if (serverMatch) {
                         if (serverMatch.otp_code) {
                             o.otp = serverMatch.otp_code;
@@ -361,10 +379,8 @@ function startPollingAndTimer() {
                         }
                         return true;
                     }
-                    stateChanged = true;
-                    return false; 
+                    stateChanged = true; return false; 
                 });
-
                 if (stateChanged) { renderSmsOrders(); updateSmsBal(); }
             }
         } catch (e) {}
@@ -384,32 +400,27 @@ function getErrMsg(res) {
 
 export async function replaceSms(orderId, productId) {
     const btn = document.getElementById(`btn-replace-${orderId}`);
-    if (!productId || productId === 'null') {
-        showModal("Peringatan", "Sistem tidak mengenali ID Produk, silakan batalkan manual lalu pesan lagi.", "alert");
-        return;
-    }
-    
+    if (!productId || productId === 'null') { showModal("Peringatan", "Sistem tidak mengenali ID Produk, silakan batalkan manual lalu pesan lagi.", "alert"); return; }
     if (btn) { btn.disabled = true; btn.innerText = "PROSES..."; }
     
     try {
         const c = await apiCall('/order-action', 'POST', { id: orderId, action: 'cancel' });
         if (c.success || (c.error && c.error.code === 'NOT_FOUND')) {
             activeOrders = activeOrders.filter(o => o.id !== orderId);
-            localStorage.removeItem('xurel_pid_' + orderId); // Hapus memori lama
+            localStorage.removeItem(`xurel_pid_${activeProviderKey}_${orderId}`); 
             
-            const n = await apiCall('/create-order', 'POST', { product_id: parseInt(productId) });
+            const n = await apiCall('/create-order', 'POST', { product_id: productId });
             if (n.success) {
                 const od = n.data.orders[0];
                 const pInfo = availableProducts.find(p => String(p.id) === String(productId));
                 const finalPrice = od.price || od.cost || (pInfo ? pInfo.price : 0);
                 
-                localStorage.setItem('xurel_pid_' + od.id, productId); // Ingat memori baru
+                localStorage.setItem(`xurel_pid_${activeProviderKey}_${od.id}`, productId);
                 
                 activeOrders.unshift({
-                    id: od.id, productId: parseInt(productId), phone: od.phone_number, price: finalPrice,
+                    id: od.id, productId: productId, phone: od.phone_number, price: finalPrice,
                     otp: null, status: "ACTIVE", expiresAt: new Date(od.expires_at).getTime(),
-                    cancelUnlockTime: Date.now() + (120*1000), isAutoCanceling: false,
-                    isHidden: false
+                    cancelUnlockTime: Date.now() + (120*1000), isAutoCanceling: false, isHidden: false
                 });
                 
                 startPollingAndTimer(); updateSmsBal(); renderSmsOrders();
@@ -437,40 +448,28 @@ export async function actSms(action, id, isAuto = false) {
     if (action === 'finish') {
         const btn = document.querySelector(`#order-${id} .btn-done`);
         if (btn) btn.innerText = "Menutup..."; 
-        
         try { await apiCall('/order-action', 'POST', { id, action: 'finish' }); } catch(e) {}
-        
         activeOrders = activeOrders.filter(o => o.id !== id);
-        localStorage.removeItem('xurel_pid_' + id); // Hapus memori
-        renderSmsOrders(); updateSmsBal();
-        return; 
+        localStorage.removeItem(`xurel_pid_${activeProviderKey}_${id}`); 
+        renderSmsOrders(); updateSmsBal(); return; 
     }
 
     let title = "Konfirmasi", msg = "Lanjutkan?", type = "confirm";
-    if(action === 'cancel') { title = "Batalkan"; msg = isAuto ? "Waktu sisa 10 menit, membatalkan otomatis..." : "Yakin batalkan pesanan ini? Saldo dikembalikan."; type = "danger"; }
+    if(action === 'cancel') { title = "Batalkan"; msg = isAuto ? "Otomatis..." : "Yakin batalkan pesanan ini? Saldo dikembalikan."; type = "danger"; }
     if(action === 'resend') { title = "Kirim Ulang"; msg = "Meminta kode OTP baru?"; }
 
-    if(!isAuto) {
-        if(!await showModal(title, msg, type)) return;
-    }
+    if(!isAuto) { if(!await showModal(title, msg, type)) return; }
 
     try {
         const res = await apiCall('/order-action', 'POST', { id, action }); 
         if(res.success) { 
             if(action === 'cancel') { 
                 activeOrders = activeOrders.filter(o => o.id !== id); 
-                localStorage.removeItem('xurel_pid_' + id); // Hapus memori
+                localStorage.removeItem(`xurel_pid_${activeProviderKey}_${id}`); 
             }
-            if(action === 'resend' && !isAuto) {
-                showModal("Info", "Permintaan kirim ulang terkirim.", "alert");
-            }
-        } else if (!isAuto) {
-            showModal("Gagal", getErrMsg(res), "alert");
-        }
-        renderSmsOrders(); 
-        updateSmsBal();
-    } catch(e) {
-        if (!isAuto) showModal("Error", "Gagal menghubungi server.", "alert");
-    }
+            if(action === 'resend' && !isAuto) showModal("Info", "Permintaan kirim ulang terkirim.", "alert");
+        } else if (!isAuto) { showModal("Gagal", getErrMsg(res), "alert"); }
+        renderSmsOrders(); updateSmsBal();
+    } catch(e) { if (!isAuto) showModal("Error", "Gagal menghubungi server.", "alert"); }
 }
 window.actSms = actSms;
