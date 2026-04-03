@@ -5,7 +5,7 @@ import { showModal } from './ui.js';
 // ==========================================
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
-    "herosms": { name: "Hero", url: "https://hero-worker.anda.workers.dev" } // <-- GANTI DENGAN WORKER HERO ANDA
+    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" } // <-- GANTI DENGAN WORKER HERO ANDA
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
