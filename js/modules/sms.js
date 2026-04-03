@@ -4,7 +4,7 @@ import { showModal } from './ui.js';
 // 1. KONFIGURASI SINGLE WORKER (ALA APP.JS)
 // ==========================================
 // Masukkan URL Worker Baru Anda di sini:
-const BASE_URL = "https://worker-sms-sentral.xurel.workers.dev"; 
+const BASE_URL = "https://sms.aam-zip.workers.dev"; 
 
 let currentServerName = ""; // Menyimpan nama server (HP1, HP2, dll)
 let smsInitialized = false; 
