@@ -40,7 +40,6 @@ async function initSms() {
     const select = document.getElementById('sms-server');
     select.innerHTML = '<option>Memuat Server...</option>';
     
-    // MENGAMBIL DAFTAR SERVER OTOMATIS DARI WORKER
     try {
         const res = await fetch(`${BASE_URL}/api/servers`);
         const data = await res.json();
@@ -143,6 +142,10 @@ export async function buySms(pid, price, name) {
         const j = await apiCall('/create-order', 'POST', { product_id: parseInt(pid) });
         if(j.success) { 
             const o = j.data.orders[0]; 
+            
+            // PERBAIKAN: Ingat ID Produk ke Memori HP agar aman saat di-refresh
+            localStorage.setItem('xurel_pid_' + o.id, pid);
+            
             activeOrders.unshift({
                 id: o.id,
                 productId: pid,
@@ -174,15 +177,25 @@ async function syncServerOrders() {
                 const exp = order.expires_at ? new Date(order.expires_at).getTime() : Date.now() + (20*60*1000);
                 const cTime = order.created_at ? new Date(order.created_at).getTime() : (exp - (20*60*1000));
                 
+                // PERBAIKAN: Coba cari ID dari server, memori lokal, atau tebak dari harganya
+                let savedPid = localStorage.getItem('xurel_pid_' + order.id);
+                let finalPid = order.product_id || order.service_id || savedPid || null;
                 let fallbackPrice = order.price || order.cost;
+
                 if(!fallbackPrice) {
-                    const matchProduct = availableProducts.find(p => String(p.id) === String(order.product_id || order.service_id));
+                    const matchProduct = availableProducts.find(p => String(p.id) === String(finalPid));
                     if (matchProduct) fallbackPrice = matchProduct.price;
+                }
+
+                // Jika masih tidak ada ID (amnesia parah), tebak dari harganya
+                if (!finalPid && fallbackPrice) {
+                    const guess = availableProducts.find(p => String(p.price) === String(fallbackPrice));
+                    if (guess) finalPid = guess.id;
                 }
 
                 return {
                     id: order.id,
-                    productId: order.product_id || order.service_id || null, 
+                    productId: finalPid, 
                     phone: order.phone_number || order.phone || 'Mencari Nomor...',
                     price: fallbackPrice || '...',
                     otp: order.otp_code,
@@ -211,7 +224,7 @@ export function copyPhoneNumber(txt, iconId) {
 window.copyPhoneNumber = copyPhoneNumber;
 
 // ==========================================
-// 5. RENDER UI (Dengan Penomoran & Hide Card)
+// 5. RENDER UI 
 // ==========================================
 export function hideSmsCard(id) {
     const orderIndex = activeOrders.findIndex(o => o.id === id);
@@ -359,7 +372,7 @@ function startPollingAndTimer() {
 }
 
 // ==========================================
-// 7. AKSI TOMBOL (PENANGKAP ERROR & FAST-DONE)
+// 7. AKSI TOMBOL
 // ==========================================
 function getErrMsg(res) {
     if (res?.error?.message) return res.error.message;
@@ -382,11 +395,15 @@ export async function replaceSms(orderId, productId) {
         const c = await apiCall('/order-action', 'POST', { id: orderId, action: 'cancel' });
         if (c.success || (c.error && c.error.code === 'NOT_FOUND')) {
             activeOrders = activeOrders.filter(o => o.id !== orderId);
+            localStorage.removeItem('xurel_pid_' + orderId); // Hapus memori lama
+            
             const n = await apiCall('/create-order', 'POST', { product_id: parseInt(productId) });
             if (n.success) {
                 const od = n.data.orders[0];
                 const pInfo = availableProducts.find(p => String(p.id) === String(productId));
                 const finalPrice = od.price || od.cost || (pInfo ? pInfo.price : 0);
+                
+                localStorage.setItem('xurel_pid_' + od.id, productId); // Ingat memori baru
                 
                 activeOrders.unshift({
                     id: od.id, productId: parseInt(productId), phone: od.phone_number, price: finalPrice,
@@ -417,7 +434,6 @@ export async function actSms(action, id, isAuto = false) {
     let order = activeOrders.find(o => o.id === id);
     if (!order && !isAuto) return;
 
-    // Aksi DONE langsung hilang tanpa pop-up
     if (action === 'finish') {
         const btn = document.querySelector(`#order-${id} .btn-done`);
         if (btn) btn.innerText = "Menutup..."; 
@@ -425,6 +441,7 @@ export async function actSms(action, id, isAuto = false) {
         try { await apiCall('/order-action', 'POST', { id, action: 'finish' }); } catch(e) {}
         
         activeOrders = activeOrders.filter(o => o.id !== id);
+        localStorage.removeItem('xurel_pid_' + id); // Hapus memori
         renderSmsOrders(); updateSmsBal();
         return; 
     }
@@ -442,6 +459,7 @@ export async function actSms(action, id, isAuto = false) {
         if(res.success) { 
             if(action === 'cancel') { 
                 activeOrders = activeOrders.filter(o => o.id !== id); 
+                localStorage.removeItem('xurel_pid_' + id); // Hapus memori
             }
             if(action === 'resend' && !isAuto) {
                 showModal("Info", "Permintaan kirim ulang terkirim.", "alert");
