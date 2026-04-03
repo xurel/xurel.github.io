@@ -23,15 +23,14 @@ let timerInterval = null;
 window.addEventListener('appSwitched', (e) => { if(e.detail === 'sms' && !smsInitialized) initSms(); });
 
 function formatPrice(price) {
-    if (activeProviderKey === "herosms") return `${price}`; // Hanya nominal untuk Hero
-    return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; // Rp untuk Code
+    if (activeProviderKey === "herosms") return `${price}`;
+    return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`;
 }
 
 async function initSms() {
     smsInitialized = true;
     const selectHp = document.getElementById('sms-server');
 
-    // Buat Dropdown Provider
     if (!document.getElementById('sms-provider')) {
         const provSelect = document.createElement('select');
         provSelect.id = 'sms-provider';
@@ -61,7 +60,7 @@ export async function changeSmsProvider() {
     activeProviderKey = document.getElementById('sms-provider').value;
     BASE_URL = PROVIDERS[activeProviderKey].url;
     localStorage.setItem('xurel_provider', activeProviderKey);
-    document.getElementById('sms-active-orders').innerHTML = ''; // Bersihkan layar
+    document.getElementById('sms-active-orders').innerHTML = ''; 
     await loadServersList();
     refreshSms();
 }
@@ -186,17 +185,17 @@ export async function executeBuySms(pid, price, name, operator) {
     }
 
     try {
-        const payload = activeProviderKey === "herosms"
-            ? { product_id: String(pid), price: price, operator: operator }
-            : { product_id: parseInt(pid) };
-
+        const payload = activeProviderKey === "herosms" ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
         const j = await apiCall('/create-order', 'POST', payload);
 
         if(j.success) {
             const o = j.data.orders[0];
-            localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, o.phone_number);
+            const newPhone = o.phone || o.phone_number || o.phoneNumber || 'Mencari Nomor...';
+            
+            localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, newPhone);
             localStorage.setItem(`price_${activeProviderKey}_${o.id}`, price);
             localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
+            
             pollSms(); updateSmsBal();
             setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
         } else {
@@ -232,7 +231,6 @@ function renderSmsOrders(orders) {
     const container = document.getElementById('sms-active-orders');
     const activeIds = orders ? orders.map(o => `order-${activeProviderKey}-${o.id}`) : [];
 
-    // Hapus kartu yang sudah tidak ada di server
     Array.from(container.children).forEach(child => {
         if (!activeIds.includes(child.id)) child.remove();
     });
@@ -240,40 +238,36 @@ function renderSmsOrders(orders) {
     if(!orders || !orders.length) return;
 
     orders.forEach(o => {
-        // Data Fallback
-        const phone = o.phone_number || localStorage.getItem(`phone_${activeProviderKey}_${o.id}`) || 'Mencari Nomor...';
-        if(o.phone_number && !localStorage.getItem(`phone_${activeProviderKey}_${o.id}`)) localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, o.phone_number);
+        // PENARIKAN DATA SUPER AKURAT (Mendukung Format Baru & Lama)
+        const serverPhone = o.phone || o.phone_number || o.phoneNumber;
+        const phone = serverPhone || localStorage.getItem(`phone_${activeProviderKey}_${o.id}`) || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
+        if(serverPhone) localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, serverPhone);
 
-        const serverPrice = o.price || o.cost || localStorage.getItem(`price_${activeProviderKey}_${o.id}`);
+        const serverPrice = o.price || o.cost || localStorage.getItem(`price_${activeProviderKey}_${o.id}`) || localStorage.getItem('price_'+o.id);
         if(serverPrice) localStorage.setItem(`price_${activeProviderKey}_${o.id}`, serverPrice);
 
-        // KUNCI SINKRONISASI SERVER LINTAS PERANGKAT
+        // LOGIKA TIMER ASLI DARI FILE ANDA (Server Sync Tepat)
         let expireTime = 0;
         if (o.expires_at) {
-            expireTime = (typeof o.expires_at === 'string') ? new Date(o.expires_at).getTime() : o.expires_at;
+            expireTime = new Date(o.expires_at).getTime();
+            if (isNaN(expireTime)) expireTime = parseInt(o.expires_at);
         } else if (o.created_at) {
-            let createdAt = (typeof o.created_at === 'string') ? new Date(o.created_at).getTime() : o.created_at;
-            expireTime = createdAt + (20 * 60000);
+            let created = new Date(o.created_at).getTime();
+            if (isNaN(created)) created = parseInt(o.created_at);
+            expireTime = created + (20 * 60000);
         }
-
-        if (!expireTime || isNaN(expireTime) || expireTime === 0) {
-            expireTime = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
-            if (!expireTime || isNaN(expireTime)) expireTime = Date.now() + (20 * 60000);
+        
+        if (!expireTime || isNaN(expireTime) || expireTime === 0) { 
+            expireTime = localStorage.getItem(`timer_${activeProviderKey}_${o.id}`) || localStorage.getItem('timer_' + o.id); 
+            if (!expireTime) expireTime = Date.now() + (20 * 60000); 
         }
-        localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, expireTime);
-
-        // Sinkronisasi Lock 2 Menit Cancel
-        let lockTime = 0;
-        if (o.created_at) {
-            let createdAt = (typeof o.created_at === 'string') ? new Date(o.created_at).getTime() : o.created_at;
-            lockTime = createdAt + 120000;
-        } else {
-            lockTime = parseInt(localStorage.getItem(`lock_${activeProviderKey}_${o.id}`));
-            if (!lockTime || isNaN(lockTime)) lockTime = Date.now() + 120000;
+        localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, expireTime); 
+        
+        let passed2Mins = false; 
+        if (expireTime) { 
+            const remaining = Math.floor((parseInt(expireTime) - Date.now()) / 1000); 
+            if (remaining <= 1080) passed2Mins = true; 
         }
-        localStorage.setItem(`lock_${activeProviderKey}_${o.id}`, lockTime);
-
-        let passed2Mins = Date.now() >= lockTime;
 
         // UI State
         const resendState = o.otp_code ? '' : 'disabled';
@@ -285,7 +279,6 @@ function renderSmsOrders(orders) {
         const existingCard = document.getElementById(cardId);
 
         if (existingCard) {
-            // Update Text jika ada perubahan
             const phoneBoxSpan = existingCard.querySelector('.phone-text-span');
             if (phoneBoxSpan && phoneBoxSpan.innerText !== phone && phone !== 'Mencari Nomor...') phoneBoxSpan.innerText = phone;
 
@@ -295,7 +288,6 @@ function renderSmsOrders(orders) {
             const priceBox = existingCard.querySelector('.price-box');
             if (priceBox && priceBox.innerText.includes('...') && serverPrice) priceBox.innerText = priceDisplay;
 
-            // Update Tombol
             if (o.otp_code) {
                 const btnDone = existingCard.querySelector('.btn-done');
                 if(btnDone && btnDone.disabled) { btnDone.disabled = false; btnDone.style.color = "var(--fb-green)"; btnDone.style.borderColor = "var(--fb-green)"; btnDone.style.background = "#e6f4ea"; }
@@ -303,14 +295,13 @@ function renderSmsOrders(orders) {
                 if(btnResend && btnResend.disabled) btnResend.disabled = false;
             }
 
-            if (passed2Mins && !o.otp_code) {
+            if (passed2Mins) {
                 const btnCancel = existingCard.querySelector('.btn-cancel');
                 const btnReplace = existingCard.querySelector('.btn-replace');
                 if(btnCancel) btnCancel.disabled = false;
                 if(btnReplace) btnReplace.disabled = false;
             }
         } else {
-            // Buat Kartu Baru
             const cardHTML = `<div class="order-card" id="${cardId}">
                 <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -349,22 +340,16 @@ function updateSmsTimers() {
         if(end) {
             const diff = Math.max(0, Math.floor((end - Date.now())/1000));
             el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
-            el.style.color = diff < 600 ? "var(--fb-red)" : "var(--fb-blue)"; // Merah di sisa 10 mnt
-
-            // Buka gembok Replace/Cancel secara real-time
-            const lockTime = parseInt(localStorage.getItem(`lock_${activeProviderKey}_${id}`));
-            if (lockTime && Date.now() >= lockTime) {
-                const existingCard = document.getElementById(`order-${activeProviderKey}-${id}`);
-                if(existingCard) {
-                    const btnCancel = existingCard.querySelector('.btn-cancel');
-                    const btnReplace = existingCard.querySelector('.btn-replace');
-                    if(btnCancel && btnCancel.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) {
-                        btnCancel.disabled = false;
-                    }
-                    if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) {
-                        btnReplace.disabled = false;
-                    }
-                }
+            el.style.color = diff < 600 ? "var(--fb-red)" : "var(--fb-blue)"; 
+            
+            if (diff <= 1080) { 
+                const existingCard = document.getElementById(`order-${activeProviderKey}-${id}`); 
+                if(existingCard) { 
+                    const btnCancel = existingCard.querySelector('.btn-cancel'); 
+                    const btnReplace = existingCard.querySelector('.btn-replace'); 
+                    if(btnCancel && btnCancel.disabled) btnCancel.disabled = false; 
+                    if(btnReplace && btnReplace.disabled) btnReplace.disabled = false; 
+                } 
             }
         }
     });
@@ -382,48 +367,40 @@ export async function actSms(action, id) {
 
     if(!await showModal(title, msg, type)) return;
 
-    // Untuk replace, eksekusi cancel ke server terlebih dahulu
     try {
         const res = await apiCall('/order-action', 'POST', { id, action: action === 'replace' ? 'cancel' : action });
         const j = await res.json();
 
-        // NOT_FOUND dianggap sukses untuk REPLACE agar tidak stuck
         if(j.success || j.error?.code === 'NOT_FOUND') {
             if(action === 'cancel' || action === 'finish' || action === 'replace') {
                 const pid = localStorage.getItem(`pid_${activeProviderKey}_${id}`);
                 const price = localStorage.getItem(`price_${activeProviderKey}_${id}`);
 
-                // Bersihkan sampah cache
                 localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
                 localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
-                localStorage.removeItem(`lock_${activeProviderKey}_${id}`);
                 localStorage.removeItem(`price_${activeProviderKey}_${id}`);
                 localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
 
-                // Eksekusi pemesanan ulang otomatis untuk Replace
-                if (action === 'replace' && pid) {
-                    const payload = activeProviderKey === "herosms"
-                        ? { product_id: pid, price: price, operator: "any" }
-                        : { product_id: parseInt(pid) };
+                // Hapus cache lama juga agar benar-benar bersih
+                localStorage.removeItem(`phone_${id}`);
+                localStorage.removeItem(`timer_${id}`);
+                localStorage.removeItem(`price_${id}`);
 
+                if (action === 'replace' && pid) {
+                    const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
                     const n = await apiCall('/create-order', 'POST', payload);
                     if (n.success) {
                         const od = n.data.orders[0];
-                        localStorage.setItem(`phone_${activeProviderKey}_${od.id}`, od.phone_number);
+                        const newPhone = od.phone || od.phone_number || od.phoneNumber || 'Mencari Nomor...';
+                        localStorage.setItem(`phone_${activeProviderKey}_${od.id}`, newPhone);
                         localStorage.setItem(`price_${activeProviderKey}_${od.id}`, price);
                         localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
                         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
-                    } else {
-                        showModal("Gagal Pesan Baru", n.error?.message || n.error || "Gagal mengganti stok.", "alert");
-                    }
+                    } else { showModal("Gagal Pesan Baru", n.error?.message || n.error || "Gagal mengganti stok.", "alert"); }
                 }
             }
             pollSms(); updateSmsBal();
-        } else {
-            showModal("Gagal", j.error?.message || j.error || "Ditolak oleh server.", "alert");
-        }
-    } catch(e){
-        showModal("Error", "Gagal terhubung ke server.", "alert");
-    }
+        } else { showModal("Gagal", j.error?.message || j.error || "Ditolak oleh server.", "alert"); }
+    } catch(e){ showModal("Error", "Gagal terhubung ke server.", "alert"); }
 }
 window.actSms = actSms;
