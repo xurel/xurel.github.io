@@ -4,11 +4,9 @@ import { showModal } from './ui.js';
 // 1. KONFIGURASI MULTI-PROVIDER & WORKER
 // ==========================================
 const PROVIDERS = {
-    // PERUBAHAN NAMA: Menjadi "Code" dan "Hero"
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
-    
     // GANTI LINK DI BAWAH INI DENGAN LINK WORKER HEROSMS ANDA!
-    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" } 
+    "herosms": { name: "Hero", url: "https://hero-worker.anda.workers.dev" } 
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -188,17 +186,15 @@ async function loadSmsPrices() {
                         </div>`;
             }).join('');
         } else {
-            // PERBAIKAN: Jika Server HeroSMS membalas pesan error (Misal BAD_KEY)
             box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">${json.error?.message || json.error || 'Stok Kosong'}</div>`;
         }
     } catch (e) {
-        // PERBAIKAN: Jika URL Worker mati, belum diganti, atau terjadi kendala jaringan
-        box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red);"><b>Gagal Terhubung ke Worker</b><br><small style="color:var(--fb-muted);">${e.message}</small><br><br><small>Pastikan URL Worker dan API Key sudah benar.</small></div>`;
+        box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red);"><b>Gagal Terhubung ke Worker</b><br><small style="color:var(--fb-muted);">${e.message}</small></div>`;
     }
 }
 
 // ==========================================
-// 4. LOGIKA ORDER & SINKRONISASI
+// 4. LOGIKA ORDER (SINKRONISASI AKTIF DARI SERVER)
 // ==========================================
 export async function buySms(pid, price, name) {
     const priceText = activeProviderKey === "smscode" ? `Rp ${price}` : `${price}`;
@@ -208,13 +204,17 @@ export async function buySms(pid, price, name) {
         const j = await apiCall('/create-order', 'POST', { product_id: pid });
         if(j.success) { 
             const o = j.data.orders[0]; 
+            
+            // Simpan Data Valid dari Worker
+            const expTime = o.expires_at ? new Date(o.expires_at).getTime() : Date.now() + (20 * 60000);
+            const lockTime = o.created_at ? new Date(o.created_at).getTime() + (120 * 1000) : Date.now() + (120 * 1000);
+            
             localStorage.setItem(`xurel_pid_${activeProviderKey}_${o.id}`, pid);
             
             activeOrders.unshift({
                 id: o.id, productId: pid, phone: o.phone_number, price: price || o.price || o.cost || 0,
                 otp: null, status: "ACTIVE",
-                expiresAt: new Date(o.expires_at || Date.now() + (20 * 60000)).getTime(),
-                cancelUnlockTime: new Date(o.created_at || Date.now()).getTime() + (120 * 1000), 
+                expiresAt: expTime, cancelUnlockTime: lockTime, 
                 isAutoCanceling: false, isHidden: false
             });
             startPollingAndTimer(); updateSmsBal(); renderSmsOrders();
@@ -229,9 +229,6 @@ async function syncServerOrders() {
         if(j.success) { 
             let serverOrders = j.data || [];
             activeOrders = serverOrders.map(order => {
-                const exp = order.expires_at ? new Date(order.expires_at).getTime() : Date.now() + (20*60*1000);
-                const cTime = order.created_at ? new Date(order.created_at).getTime() : (exp - (20*60*1000));
-                
                 let savedPid = localStorage.getItem(`xurel_pid_${activeProviderKey}_${order.id}`);
                 let finalPid = order.product_id || order.service_id || savedPid || null;
                 let fallbackPrice = order.price || order.cost;
@@ -240,17 +237,20 @@ async function syncServerOrders() {
                     const matchProduct = availableProducts.find(p => String(p.id) === String(finalPid));
                     if (matchProduct) fallbackPrice = matchProduct.price;
                 }
-
                 if (!finalPid && fallbackPrice) {
                     const guess = availableProducts.find(p => String(p.price) === String(fallbackPrice));
                     if (guess) finalPid = guess.id;
                 }
 
+                // PERBAIKAN: Gunakan waktu ASLI DARI SERVER
+                let exp = order.expires_at ? new Date(order.expires_at).getTime() : Date.now() + (20*60*1000);
+                let lock = order.created_at ? new Date(order.created_at).getTime() + 120000 : exp - (18*60000);
+
                 return {
                     id: order.id, productId: finalPid, phone: order.phone_number || order.phone || 'Mencari Nomor...',
                     price: fallbackPrice || '...', otp: order.otp_code,
                     status: order.otp_code ? "OTP_RECEIVED" : "ACTIVE",
-                    expiresAt: exp, cancelUnlockTime: cTime + (120*1000),
+                    expiresAt: exp, cancelUnlockTime: lock,
                     isAutoCanceling: false, isHidden: false
                 };
             });
@@ -338,7 +338,7 @@ function renderSmsOrders() {
 }
 
 // ==========================================
-// 6. POLLING & TIMER (ANTI-HILANG HEROSMS)
+// 6. POLLING & TIMER SERVER-SYNC
 // ==========================================
 function startPollingAndTimer() {
     if (timerInterval) clearInterval(timerInterval);
@@ -361,6 +361,7 @@ function startPollingAndTimer() {
                 timerElement.style.color = timeLeft < 600000 ? "var(--fb-red)" : "var(--fb-blue)"; 
             }
 
+            // Atur kuncian tombol Batal/Replace berdasarkan waktu
             if(order.cancelUnlockTime - now <= 0 && !order.isHidden) {
                 const orderCard = document.getElementById(`order-${order.id}`);
                 if(orderCard) {
@@ -389,15 +390,19 @@ function startPollingAndTimer() {
                 let stateChanged = false;
                 activeOrders = activeOrders.filter(o => {
                     if (o.isHidden) return true; 
-                    if (o.status === "OTP_RECEIVED") return true; 
                     
                     let serverMatch = j.data.find(so => String(so.id) === String(o.id));
                     if (serverMatch) {
                         if (serverMatch.otp_code) {
                             o.otp = serverMatch.otp_code;
                             o.status = "OTP_RECEIVED";
-                            stateChanged = true;
                         }
+                        
+                        // PERBAIKAN: Selalu Sinkronkan Waktu dengan Server
+                        if (serverMatch.expires_at) o.expiresAt = new Date(serverMatch.expires_at).getTime();
+                        if (serverMatch.created_at) o.cancelUnlockTime = new Date(serverMatch.created_at).getTime() + 120000;
+                        
+                        stateChanged = true;
                         return true;
                     }
                     
@@ -442,12 +447,15 @@ export async function replaceSms(orderId, productId) {
                 const pInfo = availableProducts.find(p => String(p.id) === String(productId));
                 const finalPrice = od.price || od.cost || (pInfo ? pInfo.price : 0);
                 
+                const expTime = od.expires_at ? new Date(od.expires_at).getTime() : Date.now() + (20 * 60000);
+                const lockTime = od.created_at ? new Date(od.created_at).getTime() + (120 * 1000) : Date.now() + (120 * 1000);
+                
                 localStorage.setItem(`xurel_pid_${activeProviderKey}_${od.id}`, productId);
                 
                 activeOrders.unshift({
                     id: od.id, productId: productId, phone: od.phone_number, price: finalPrice,
-                    otp: null, status: "ACTIVE", expiresAt: new Date(od.expires_at).getTime(),
-                    cancelUnlockTime: Date.now() + (120*1000), isAutoCanceling: false, isHidden: false
+                    otp: null, status: "ACTIVE", expiresAt: expTime,
+                    cancelUnlockTime: lockTime, isAutoCanceling: false, isHidden: false
                 });
                 
                 startPollingAndTimer(); updateSmsBal(); renderSmsOrders();
