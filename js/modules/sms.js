@@ -17,6 +17,10 @@ let isSmsLocked = false;
 let pollingInterval = null;
 let timerInterval = null;
 
+// State Lokal untuk UI (Menyimpan status Hide & Auto-Cancel)
+let activeOrders = [];
+let orderStates = {};
+
 // ==========================================
 // 2. INISIALISASI & UI HANDLER
 // ==========================================
@@ -60,6 +64,7 @@ export async function changeSmsProvider() {
     activeProviderKey = document.getElementById('sms-provider').value;
     BASE_URL = PROVIDERS[activeProviderKey].url;
     localStorage.setItem('xurel_provider', activeProviderKey);
+    activeOrders = []; orderStates = {};
     document.getElementById('sms-active-orders').innerHTML = ''; 
     await loadServersList();
     refreshSms();
@@ -85,6 +90,7 @@ export function changeSmsServer() {
     if(isSmsLocked) return;
     currentServerName = document.getElementById('sms-server').value;
     localStorage.setItem(`xurel_hp_${activeProviderKey}`, currentServerName);
+    activeOrders = []; orderStates = {};
     document.getElementById('sms-active-orders').innerHTML = '';
     refreshSms();
 }
@@ -160,12 +166,10 @@ async function loadSmsPrices() {
     }
 }
 
-// Helper: Pembuat Elemen HTML Kartu dengan Indikator Warna
+// Helper: Pembuat Elemen HTML Kartu (Sudah Termasuk Tombol Mata/Hide)
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
-    
-    // PENENTUAN WARNA TEPI KARTU
-    const borderColor = activeProviderKey === "herosms" ? "#8e44ad" : "#95a5a6"; // Ungu untuk Hero, Abu-abu untuk Code
+    const borderColor = activeProviderKey === "herosms" ? "#8e44ad" : "#95a5a6"; 
     
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border-left: 5px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
@@ -174,7 +178,10 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceStat
                 <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
                 <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">${priceDisplay}</span>
             </div>
-            <span class="sms-timer" data-id="${oId}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <i class="fa-regular fa-eye-slash hide-btn-icon" onclick="hideSmsCard(${oId})" style="color: var(--fb-muted); cursor:pointer; font-size:14px; padding: 5px;"></i>
+                <span class="sms-timer" data-id="${oId}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
+            </div>
         </div>
         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Nomor HP:</div>
         <div class="phone-box" onclick="copyPhoneNumber('${phone}', 'copy-icon-${oId}')">
@@ -251,13 +258,25 @@ export async function executeBuySms(pid, price, name, operator) {
 window.executeBuySms = executeBuySms;
 
 // ==========================================
-// 4. LOGIKA SERVER SYNC (TIMER & UI)
+// 4. LOGIKA SERVER SYNC & UI RENDER
 // ==========================================
 async function pollSms() {
     const j = await apiCall('/get-active');
     const isSuccess = j.success === true || j.status === "success";
-    if(isSuccess && j.data) renderSmsOrders(j.data);
+    if(isSuccess && j.data) {
+        activeOrders = j.data; 
+        renderSmsOrders(j.data);
+    }
 }
+
+// Fungsi Fitur Hide (Mata Silang)
+export function hideSmsCard(id) {
+    if (!orderStates[id]) orderStates[id] = {};
+    orderStates[id].isHidden = true; // Tandai lokal
+    const card = document.getElementById(`order-${activeProviderKey}-${id}`);
+    if (card) card.remove(); // Hapus dari layar
+}
+window.hideSmsCard = hideSmsCard;
 
 export function copyPhoneNumber(txt, iconId) {
     if(txt.includes('Mencari')) return;
@@ -277,15 +296,16 @@ function renderSmsOrders(orders) {
     Array.from(container.children).forEach(child => {
         if (!activeIds.includes(child.id)) {
             const createdTime = parseInt(child.getAttribute('data-created') || 0);
-            if (Date.now() - createdTime > 15000) {
-                child.remove();
-            }
+            if (Date.now() - createdTime > 15000) child.remove();
         }
     });
 
     if(!orders || !orders.length) return;
 
     orders.forEach(o => {
+        // Cegah merender kartu yang sudah di-hide oleh user
+        if (orderStates[o.id] && orderStates[o.id].isHidden) return;
+
         const serverPhone = o.phone || o.phone_number || o.phoneNumber;
         const phone = serverPhone || localStorage.getItem(`phone_${activeProviderKey}_${o.id}`) || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
         if(serverPhone) localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, serverPhone);
@@ -359,13 +379,26 @@ function renderSmsOrders(orders) {
     updateSmsTimers();
 }
 
+// Eksekusi Batal Otomatis Secara Latar Belakang (Tanpa Popup)
+async function autoCancelSilent(id) {
+    await apiCall('/order-action', 'POST', { id, action: 'cancel' });
+    localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
+    localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
+    localStorage.removeItem(`price_${activeProviderKey}_${id}`);
+    localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
+    pollSms(); updateSmsBal();
+}
+
 function updateSmsTimers() {
+    const now = Date.now();
+    
+    // 1. Update Timer di Layar & Buka Kunci Tombol (Cancel/Replace)
     document.querySelectorAll('.sms-timer').forEach(el => {
         const id = el.dataset.id;
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${id}`)) || parseInt(localStorage.getItem('timer_' + id));
 
         if(end) {
-            const diff = Math.max(0, Math.floor((end - Date.now())/1000));
+            const diff = Math.max(0, Math.floor((end - now)/1000));
             el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
             el.style.color = diff < 600 ? "var(--fb-red)" : "var(--fb-blue)"; 
             
@@ -377,6 +410,24 @@ function updateSmsTimers() {
                     if(btnCancel && btnCancel.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnCancel.disabled = false; 
                     if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnReplace.disabled = false; 
                 } 
+            }
+        }
+    });
+
+    // 2. LOGIKA AUTO CANCEL (10 MENIT) - Berjalan meskipun kartu disembunyikan/di-hide
+    activeOrders.forEach(o => {
+        if (o.otp_code) return; // Abaikan jika sudah ada OTP
+        
+        const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
+        if (end) {
+            const timeLeft = end - now;
+            // Jika waktu tersisa <= 10 menit (600000ms) dan tidak sedang dalam status Auto-Canceled
+            if (timeLeft <= 600000 && timeLeft > 0) {
+                if (!orderStates[o.id]) orderStates[o.id] = {};
+                if (!orderStates[o.id].autoCanceled) {
+                    orderStates[o.id].autoCanceled = true; // Kunci agar tidak di-cancel berulang kali
+                    autoCancelSilent(o.id);
+                }
             }
         }
     });
@@ -438,6 +489,7 @@ export async function actSms(action, id) {
         }
 
         if (action === 'replace' && pid) {
+            delete orderStates[id]; // Bersihkan riwayat hide jika ID ini di-replace
             const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
@@ -477,6 +529,9 @@ export async function actSms(action, id) {
                     const btnReplace = oldCard.querySelector('.btn-replace');
                     if (btnReplace) { btnReplace.disabled = true; btnReplace.setAttribute('onclick', `actSms('replace', ${od.id})`); }
                     
+                    const hideBtn = oldCard.querySelector('.hide-btn-icon');
+                    if (hideBtn) hideBtn.setAttribute('onclick', `hideSmsCard(${od.id})`);
+
                     const spans = oldCard.querySelectorAll('span');
                     spans.forEach(sp => { if (sp.innerText.trim() === `#${id}`) sp.innerText = `#${od.id}`; });
                     
