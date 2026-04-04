@@ -17,7 +17,7 @@ let isSmsLocked = false;
 let pollingInterval = null;
 let timerInterval = null;
 
-// State Lokal untuk UI (Menyimpan status Hide & Auto-Cancel)
+// State Lokal untuk UI
 let activeOrders = [];
 let orderStates = {};
 
@@ -153,7 +153,8 @@ async function loadSmsPrices() {
     if (isSuccess && json.data && json.data.length > 0) {
         box.innerHTML = json.data.map(i => {
             let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-            return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}')">
+            // Menambahkan i.available ke parameter fungsi buySms
+            return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}', ${i.available})">
                         <div style="flex: 1; min-width: 0; padding-right: 10px;"><div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div></div>
                         <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
                             <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
@@ -166,12 +167,13 @@ async function loadSmsPrices() {
     }
 }
 
-// Helper: Pembuat Elemen HTML Kartu (Sudah Termasuk Tombol Mata/Hide)
+// Helper: Pembuat Elemen HTML Kartu (Garis Tepi Penuh Sesuai Warna)
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
     const borderColor = activeProviderKey === "herosms" ? "#8e44ad" : "#95a5a6"; 
     
-    return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border-left: 5px solid ${borderColor};">
+    // Perubahan border: Menerapkan garis tepi ke semua sisi dengan ketebalan 2px
+    return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${oId}</span>
@@ -200,19 +202,21 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceStat
     </div>`;
 }
 
-export async function buySms(pid, price, name) {
+// Menambahkan argumen 'stock' untuk menampilkan jumlah stok
+export async function buySms(pid, price, name, stock = "~") {
     if (activeProviderKey === "herosms") {
         const box = document.getElementById('sms-prices');
         box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
         
-        const ops = ["indosat", "telkomsel", "axis"];
+        const ops = ["indosat", "telkomsel", "axis", "three"];
         let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
 
         ops.forEach(op => {
             let opName = op.toUpperCase();
             html += `<div class="price-item" onclick="executeBuySms('${pid}', ${price}, '${name}', '${op}')">
                 <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${opName}</div>
-                <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted); margin-right:5px;"></i>
+                <div style="font-size:12px; color:var(--fb-muted); margin-right:10px;">${stock} stok</div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
             </div>`;
         });
         html += `<button class="sms-btn btn-cancel" style="width:100%; margin-top:15px; padding:12px;" onclick="refreshSms()">Batal / Kembali</button>`;
@@ -269,12 +273,11 @@ async function pollSms() {
     }
 }
 
-// Fungsi Fitur Hide (Mata Silang)
 export function hideSmsCard(id) {
     if (!orderStates[id]) orderStates[id] = {};
-    orderStates[id].isHidden = true; // Tandai lokal
+    orderStates[id].isHidden = true; 
     const card = document.getElementById(`order-${activeProviderKey}-${id}`);
-    if (card) card.remove(); // Hapus dari layar
+    if (card) card.remove(); 
 }
 window.hideSmsCard = hideSmsCard;
 
@@ -303,7 +306,6 @@ function renderSmsOrders(orders) {
     if(!orders || !orders.length) return;
 
     orders.forEach(o => {
-        // Cegah merender kartu yang sudah di-hide oleh user
         if (orderStates[o.id] && orderStates[o.id].isHidden) return;
 
         const serverPhone = o.phone || o.phone_number || o.phoneNumber;
@@ -379,7 +381,6 @@ function renderSmsOrders(orders) {
     updateSmsTimers();
 }
 
-// Eksekusi Batal Otomatis Secara Latar Belakang (Tanpa Popup)
 async function autoCancelSilent(id) {
     await apiCall('/order-action', 'POST', { id, action: 'cancel' });
     localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
@@ -392,7 +393,6 @@ async function autoCancelSilent(id) {
 function updateSmsTimers() {
     const now = Date.now();
     
-    // 1. Update Timer di Layar & Buka Kunci Tombol (Cancel/Replace)
     document.querySelectorAll('.sms-timer').forEach(el => {
         const id = el.dataset.id;
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${id}`)) || parseInt(localStorage.getItem('timer_' + id));
@@ -414,18 +414,16 @@ function updateSmsTimers() {
         }
     });
 
-    // 2. LOGIKA AUTO CANCEL (10 MENIT) - Berjalan meskipun kartu disembunyikan/di-hide
     activeOrders.forEach(o => {
-        if (o.otp_code) return; // Abaikan jika sudah ada OTP
+        if (o.otp_code) return; 
         
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
         if (end) {
             const timeLeft = end - now;
-            // Jika waktu tersisa <= 10 menit (600000ms) dan tidak sedang dalam status Auto-Canceled
             if (timeLeft <= 600000 && timeLeft > 0) {
                 if (!orderStates[o.id]) orderStates[o.id] = {};
                 if (!orderStates[o.id].autoCanceled) {
-                    orderStates[o.id].autoCanceled = true; // Kunci agar tidak di-cancel berulang kali
+                    orderStates[o.id].autoCanceled = true; 
                     autoCancelSilent(o.id);
                 }
             }
@@ -489,7 +487,7 @@ export async function actSms(action, id) {
         }
 
         if (action === 'replace' && pid) {
-            delete orderStates[id]; // Bersihkan riwayat hide jika ID ini di-replace
+            delete orderStates[id]; 
             const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
