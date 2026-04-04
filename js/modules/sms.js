@@ -160,10 +160,14 @@ async function loadSmsPrices() {
     }
 }
 
-// Helper: Pembuat Elemen HTML Kartu agar tidak ditulis berulang-ulang
+// Helper: Pembuat Elemen HTML Kartu dengan Indikator Warna
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
-    return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}">
+    
+    // PENENTUAN WARNA TEPI KARTU
+    const borderColor = activeProviderKey === "herosms" ? "#8e44ad" : "#95a5a6"; // Ungu untuk Hero, Abu-abu untuk Code
+    
+    return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border-left: 5px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${oId}</span>
@@ -194,7 +198,6 @@ export async function buySms(pid, price, name) {
         const box = document.getElementById('sms-prices');
         box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
         
-        // HANYA 3 PROVIDER (INDOSAT, TELKOMSEL, AXIS) Sesuai Permintaan
         const ops = ["indosat", "telkomsel", "axis"];
         let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
 
@@ -234,7 +237,6 @@ export async function executeBuySms(pid, price, name, operator) {
         localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
         localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, Date.now() + (20 * 60000));
         
-        // Memunculkan kartu secara instan tanpa menunggu pollSms
         const container = document.getElementById('sms-active-orders');
         const cardHTML = createCardHTML(o.id, newPhone, formatPrice(price), 'disabled', 'disabled', `<div class="loader-bars"><span></span><span></span><span></span></div>`);
         container.insertAdjacentHTML('afterbegin', cardHTML);
@@ -274,8 +276,6 @@ function renderSmsOrders(orders) {
 
     Array.from(container.children).forEach(child => {
         if (!activeIds.includes(child.id)) {
-            // Anti-Hilang: Beri waktu toleransi 15 detik untuk kartu yang baru direplace/dibeli
-            // agar tidak terhapus jika API server agak lambat menyadari ada nomor baru.
             const createdTime = parseInt(child.getAttribute('data-created') || 0);
             if (Date.now() - createdTime > 15000) {
                 child.remove();
@@ -394,7 +394,6 @@ export async function actSms(action, id) {
 
     if(!await showModal(title, msg, type)) return;
 
-    // Jika user klik Replace, tampilkan animasi di tempat
     if (action === 'replace') {
         const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
         if(oldCard) {
@@ -406,7 +405,6 @@ export async function actSms(action, id) {
     const sendAction = action === 'replace' ? 'cancel' : action;
     const j = await apiCall('/order-action', 'POST', { id, action: sendAction });
     
-    // Deteksi jika order sudah dibatalkan atau hilang dari server (sukses palsu)
     const errStr = JSON.stringify(j).toUpperCase();
     let isSuccess = j.success === true || j.status === "success";
     
@@ -428,7 +426,6 @@ export async function actSms(action, id) {
         const pid = localStorage.getItem(`pid_${activeProviderKey}_${id}`);
         const price = localStorage.getItem(`price_${activeProviderKey}_${id}`);
 
-        // Bersihkan sampah local storage yang lama
         localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
         localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
         localStorage.removeItem(`price_${activeProviderKey}_${id}`);
@@ -441,7 +438,6 @@ export async function actSms(action, id) {
         }
 
         if (action === 'replace' && pid) {
-            // Gunakan ANY agar mendapat pengganti tercepat
             const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
@@ -455,7 +451,6 @@ export async function actSms(action, id) {
                 localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
                 localStorage.setItem(`timer_${activeProviderKey}_${od.id}`, Date.now() + (20 * 60000));
 
-                // MERUBAH IDENTITAS KARTU LAMA MENJADI KARTU BARU (Menimpa di tempat yang sama)
                 const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
                 if (oldCard) {
                     oldCard.id = `order-${activeProviderKey}-${od.id}`;
@@ -493,7 +488,6 @@ export async function actSms(action, id) {
                 }
             } else { 
                 showModal("Gagal Pesan Baru", n.error?.message || n.message || n.error || "Gagal mengganti stok.", "alert"); 
-                // Jika gagal beli, buang kartu yang tadi loading
                 const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
                 if (oldCard) oldCard.remove();
             }
@@ -501,7 +495,6 @@ export async function actSms(action, id) {
         pollSms(); updateSmsBal();
     } else { 
         showModal("Gagal", j.error?.message || j.message || j.error || "Ditolak oleh server.", "alert"); 
-        // Jika gagal cancel, hilangkan status loading
         if (action === 'replace') {
             const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
             if (oldCard) {
