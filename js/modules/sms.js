@@ -160,12 +160,41 @@ async function loadSmsPrices() {
     }
 }
 
+// Helper: Pembuat Elemen HTML Kartu agar tidak ditulis berulang-ulang
+function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
+    const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
+    return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}">
+        <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${oId}</span>
+                <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
+                <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">${priceDisplay}</span>
+            </div>
+            <span class="sms-timer" data-id="${oId}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
+        </div>
+        <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Nomor HP:</div>
+        <div class="phone-box" onclick="copyPhoneNumber('${phone}', 'copy-icon-${oId}')">
+            <span class="phone-text-span">${phone}</span><i id="copy-icon-${oId}" class="fa-regular fa-copy" style="color: var(--fb-muted);"></i>
+        </div>
+        <div style="text-align: center; margin: 10px 0 15px 0; padding: 15px 0; background: #fafafa; border-radius: 8px;">
+            <div style="font-size:11px; color:var(--fb-muted); font-weight:bold; letter-spacing:1px; margin-bottom:5px;">KODE OTP</div>
+            <div class="otp-container" style="min-height:35px; display:flex; align-items:center; justify-content:center;">${otpDisplay}</div>
+        </div>
+        <div class="btn-grid-4">
+            <button class="sms-btn btn-done" onclick="actSms('finish', ${oId})" ${doneStyle}>✓ DONE</button>
+            <button class="sms-btn btn-resend" onclick="actSms('resend', ${oId})" ${resendState}>↻ RESEND</button>
+            <button class="sms-btn btn-cancel" onclick="actSms('cancel', ${oId})" ${cancelReplaceState}>✕ CANCEL</button>
+            <button class="sms-btn btn-replace" onclick="actSms('replace', ${oId})" ${cancelReplaceState}>⇄ REPLACE</button>
+        </div>
+    </div>`;
+}
+
 export async function buySms(pid, price, name) {
     if (activeProviderKey === "herosms") {
         const box = document.getElementById('sms-prices');
         box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
         
-        // HANYA 3 PROVIDER (INDOSAT, TELKOMSEL, AXIS)
+        // HANYA 3 PROVIDER (INDOSAT, TELKOMSEL, AXIS) Sesuai Permintaan
         const ops = ["indosat", "telkomsel", "axis"];
         let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
 
@@ -203,7 +232,13 @@ export async function executeBuySms(pid, price, name, operator) {
         localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, newPhone);
         localStorage.setItem(`price_${activeProviderKey}_${o.id}`, price);
         localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
+        localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, Date.now() + (20 * 60000));
         
+        // Memunculkan kartu secara instan tanpa menunggu pollSms
+        const container = document.getElementById('sms-active-orders');
+        const cardHTML = createCardHTML(o.id, newPhone, formatPrice(price), 'disabled', 'disabled', `<div class="loader-bars"><span></span><span></span><span></span></div>`);
+        container.insertAdjacentHTML('afterbegin', cardHTML);
+
         pollSms(); updateSmsBal();
         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
     } else {
@@ -238,7 +273,14 @@ function renderSmsOrders(orders) {
     const activeIds = orders ? orders.map(o => `order-${activeProviderKey}-${o.id}`) : [];
 
     Array.from(container.children).forEach(child => {
-        if (!activeIds.includes(child.id)) child.remove();
+        if (!activeIds.includes(child.id)) {
+            // Anti-Hilang: Beri waktu toleransi 15 detik untuk kartu yang baru direplace/dibeli
+            // agar tidak terhapus jika API server agak lambat menyadari ada nomor baru.
+            const createdTime = parseInt(child.getAttribute('data-created') || 0);
+            if (Date.now() - createdTime > 15000) {
+                child.remove();
+            }
+        }
     });
 
     if(!orders || !orders.length) return;
@@ -275,6 +317,7 @@ function renderSmsOrders(orders) {
 
         const resendState = o.otp_code ? '' : 'disabled';
         const cancelReplaceState = passed2Mins ? '' : 'disabled';
+        const isDone = !!o.otp_code;
         let otpDisplay = o.otp_code ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp_code}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
         const priceDisplay = serverPrice ? formatPrice(serverPrice) : '...';
 
@@ -282,7 +325,6 @@ function renderSmsOrders(orders) {
         const existingCard = document.getElementById(cardId);
 
         if (existingCard) {
-            // Mencegah error jika "Mencari Nomor..." berhasil ditemukan, fungsi onclick langsung aktif
             const phoneBoxSpan = existingCard.querySelector('.phone-text-span');
             if (phoneBoxSpan && phoneBoxSpan.innerText !== phone && phone !== 'Mencari Nomor...') {
                 phoneBoxSpan.innerText = phone;
@@ -310,30 +352,7 @@ function renderSmsOrders(orders) {
                 if(btnReplace) btnReplace.disabled = false;
             }
         } else {
-            const cardHTML = `<div class="order-card" id="${cardId}">
-                <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${o.id}</span>
-                        <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
-                        <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">${priceDisplay}</span>
-                    </div>
-                    <span class="sms-timer" data-id="${o.id}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
-                </div>
-                <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Nomor HP:</div>
-                <div class="phone-box" onclick="copyPhoneNumber('${phone}', 'copy-icon-${o.id}')">
-                    <span class="phone-text-span">${phone}</span><i id="copy-icon-${o.id}" class="fa-regular fa-copy" style="color: var(--fb-muted);"></i>
-                </div>
-                <div style="text-align: center; margin: 10px 0 15px 0; padding: 15px 0; background: #fafafa; border-radius: 8px;">
-                    <div style="font-size:11px; color:var(--fb-muted); font-weight:bold; letter-spacing:1px; margin-bottom:5px;">KODE OTP</div>
-                    <div class="otp-container" style="min-height:35px; display:flex; align-items:center; justify-content:center;">${otpDisplay}</div>
-                </div>
-                <div class="btn-grid-4">
-                    <button class="sms-btn btn-done" onclick="actSms('finish', ${o.id})" ${o.otp_code?'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"':'disabled'}>✓ DONE</button>
-                    <button class="sms-btn btn-resend" onclick="actSms('resend', ${o.id})" ${resendState}>↻ RESEND</button>
-                    <button class="sms-btn btn-cancel" onclick="actSms('cancel', ${o.id})" ${cancelReplaceState}>✕ CANCEL</button>
-                    <button class="sms-btn btn-replace" onclick="actSms('replace', ${o.id})" ${cancelReplaceState}>⇄ REPLACE</button>
-                </div>
-            </div>`;
+            const cardHTML = createCardHTML(o.id, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone);
             container.insertAdjacentHTML('afterbegin', cardHTML);
         }
     });
@@ -355,7 +374,6 @@ function updateSmsTimers() {
                 if(existingCard) { 
                     const btnCancel = existingCard.querySelector('.btn-cancel'); 
                     const btnReplace = existingCard.querySelector('.btn-replace'); 
-                    // Buka gembok tombol jika waktu lock habis & OTP belum masuk
                     if(btnCancel && btnCancel.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnCancel.disabled = false; 
                     if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnReplace.disabled = false; 
                 } 
@@ -365,7 +383,7 @@ function updateSmsTimers() {
 }
 
 // ==========================================
-// 5. AKSI ORDER (MENIMPA POSISI ASLI KARTU)
+// 5. AKSI ORDER (GANTI NOMOR DI TEMPAT)
 // ==========================================
 export async function actSms(action, id) {
     let title = "Konfirmasi", msg = "Lanjutkan?", type = "confirm";
@@ -376,19 +394,27 @@ export async function actSms(action, id) {
 
     if(!await showModal(title, msg, type)) return;
 
+    // Jika user klik Replace, tampilkan animasi di tempat
+    if (action === 'replace') {
+        const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
+        if(oldCard) {
+            const otpContainer = oldCard.querySelector('.otp-container');
+            if(otpContainer) otpContainer.innerHTML = `<span style="color:var(--fb-blue); font-size:12px; font-weight:bold;"><i class="fa-solid fa-spinner fa-spin"></i> Menukar...</span>`;
+        }
+    }
+
     const sendAction = action === 'replace' ? 'cancel' : action;
     const j = await apiCall('/order-action', 'POST', { id, action: sendAction });
     
+    // Deteksi jika order sudah dibatalkan atau hilang dari server (sukses palsu)
     const errStr = JSON.stringify(j).toUpperCase();
     let isSuccess = j.success === true || j.status === "success";
     
-    // Deteksi jika order sudah hilang di server (dianggap sukses batal)
     if (!isSuccess && (action === 'cancel' || action === 'replace' || action === 'finish')) {
         if (errStr.includes('NOT_FOUND') || errStr.includes('NO_ACTIVATION') || errStr.includes('NOT FOUND') || errStr.includes('ALREADY')) {
             isSuccess = true; 
         }
     }
-
     if (errStr.includes('EARLY_CANCEL_DENIED') || errStr.includes('BELUM 2 MENIT')) {
         isSuccess = false; 
     }
@@ -402,18 +428,20 @@ export async function actSms(action, id) {
         const pid = localStorage.getItem(`pid_${activeProviderKey}_${id}`);
         const price = localStorage.getItem(`price_${activeProviderKey}_${id}`);
 
-        // Pembersihan
+        // Bersihkan sampah local storage yang lama
         localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
         localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
         localStorage.removeItem(`price_${activeProviderKey}_${id}`);
         localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
-        localStorage.removeItem(`lock_${activeProviderKey}_${id}`);
-        
-        localStorage.removeItem(`phone_${id}`);
-        localStorage.removeItem(`timer_${id}`);
-        localStorage.removeItem(`price_${id}`);
+        localStorage.removeItem(`phone_${id}`); localStorage.removeItem(`timer_${id}`); localStorage.removeItem(`price_${id}`);
+
+        if (action === 'cancel' || action === 'finish') {
+            const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
+            if (oldCard) oldCard.remove();
+        }
 
         if (action === 'replace' && pid) {
+            // Gunakan ANY agar mendapat pengganti tercepat
             const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
@@ -427,12 +455,11 @@ export async function actSms(action, id) {
                 localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
                 localStorage.setItem(`timer_${activeProviderKey}_${od.id}`, Date.now() + (20 * 60000));
 
-                // ==============================================================
-                // MAGIC TRICK: TIMPA DOM ELEMENT KARTU LAMA DENGAN DATA BARU
-                // ==============================================================
+                // MERUBAH IDENTITAS KARTU LAMA MENJADI KARTU BARU (Menimpa di tempat yang sama)
                 const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
                 if (oldCard) {
                     oldCard.id = `order-${activeProviderKey}-${od.id}`;
+                    oldCard.setAttribute('data-created', Date.now()); 
                     
                     const phoneBoxSpan = oldCard.querySelector('.phone-text-span');
                     if (phoneBoxSpan) phoneBoxSpan.innerText = newPhone;
@@ -444,7 +471,7 @@ export async function actSms(action, id) {
                     if (timerEl) { timerEl.dataset.id = od.id; timerEl.innerText = '--:--'; }
 
                     const btnDone = oldCard.querySelector('.btn-done');
-                    if (btnDone) { btnDone.disabled = true; btnDone.style.background = ''; btnDone.style.color = ''; btnDone.style.borderColor = ''; btnDone.setAttribute('onclick', `actSms('finish', ${od.id})`); }
+                    if (btnDone) { btnDone.disabled = true; btnDone.style.background = ''; btnDone.style.borderColor = ''; btnDone.style.color = ''; btnDone.setAttribute('onclick', `actSms('finish', ${od.id})`); }
                     
                     const btnResend = oldCard.querySelector('.btn-resend');
                     if (btnResend) { btnResend.disabled = true; btnResend.setAttribute('onclick', `actSms('resend', ${od.id})`); }
@@ -458,21 +485,30 @@ export async function actSms(action, id) {
                     const spans = oldCard.querySelectorAll('span');
                     spans.forEach(sp => { if (sp.innerText.trim() === `#${id}`) sp.innerText = `#${od.id}`; });
                     
-                    const phoneBox = oldCard.querySelector('.phone-box');
-                    if (phoneBox) phoneBox.setAttribute('onclick', `copyPhoneNumber('${newPhone}', 'copy-icon-${od.id}')`);
-                    
                     const copyIcon = oldCard.querySelector('.fa-copy, .fa-circle-check');
                     if (copyIcon) copyIcon.id = `copy-icon-${od.id}`;
+                    
+                    const phoneBox = oldCard.querySelector('.phone-box');
+                    if (phoneBox) phoneBox.setAttribute('onclick', `copyPhoneNumber('${newPhone}', 'copy-icon-${od.id}')`);
                 }
-                
-                // Tidak ada auto-scroll sehingga kartu tetap diam di posisinya
             } else { 
                 showModal("Gagal Pesan Baru", n.error?.message || n.message || n.error || "Gagal mengganti stok.", "alert"); 
+                // Jika gagal beli, buang kartu yang tadi loading
+                const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
+                if (oldCard) oldCard.remove();
             }
         }
         pollSms(); updateSmsBal();
     } else { 
         showModal("Gagal", j.error?.message || j.message || j.error || "Ditolak oleh server.", "alert"); 
+        // Jika gagal cancel, hilangkan status loading
+        if (action === 'replace') {
+            const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
+            if (oldCard) {
+                const otpContainer = oldCard.querySelector('.otp-container');
+                if (otpContainer) otpContainer.innerHTML = `<div class="loader-bars"><span></span><span></span><span></span></div>`;
+            }
+        }
     }
 }
 window.actSms = actSms;
