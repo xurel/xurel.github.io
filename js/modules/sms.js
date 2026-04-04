@@ -70,9 +70,8 @@ async function loadServersList() {
     const select = document.getElementById('sms-server');
     select.innerHTML = '<option>Memuat...</option>';
     try {
-        const res = await fetch(`${BASE_URL}/api/servers`);
-        const data = await res.json();
-        if(data.success && data.servers.length) select.innerHTML = data.servers.map(k => `<option value="${k}">${k}</option>`).join('');
+        const res = await apiCall('/api/servers');
+        if(res.success && res.servers) select.innerHTML = res.servers.map(k => `<option value="${k}">${k}</option>`).join('');
         else throw new Error("Kosong");
     } catch (e) {
         select.innerHTML = ["HP1", "HP2"].map(k => `<option value="${k}">${k}</option>`).join('');
@@ -115,62 +114,71 @@ export function refreshSms() {
 window.refreshSms = refreshSms;
 
 // ==========================================
-// 3. API & DATA FETCHING
+// 3. API PENGHANCUR CRASH (ANTI-ERROR)
 // ==========================================
 async function apiCall(endpoint, method = "GET", body = null) {
     const options = { method, headers: { "Content-Type": "application/json", "X-Server-Name": currentServerName } };
     if (body) options.body = JSON.stringify(body);
-    const res = await fetch(`${BASE_URL}${endpoint}`, options);
-    // CATATAN PENTING: apiCall ini SUDAH me-return JSON secara otomatis
-    return await res.json();
+    try {
+        const res = await fetch(`${BASE_URL}${endpoint}`, options);
+        const text = await res.text(); 
+        try {
+            return JSON.parse(text); // Jika format benar, jadikan JSON otomatis
+        } catch(e) {
+            // Jika format gagal diparse (Error Cloudflare/Teks Mentah), ubah manual agar UI panel tidak Crash!
+            return { success: res.ok, status: res.ok ? "success" : "failed", error: { message: text || "Format server tidak sesuai" } };
+        }
+    } catch(err) {
+        return { success: false, error: { message: "Jaringan terputus / Server Sibuk" } };
+    }
 }
 
 async function updateSmsBal() {
-    try {
-        const json = await apiCall('/get-balance');
-        if(json.success) document.getElementById('sms-balance').innerText = formatPrice(json.data.balance);
-        else document.getElementById('sms-balance').innerText = "Error";
-    } catch(e) { document.getElementById('sms-balance').innerText = "Offline"; }
+    const json = await apiCall('/get-balance');
+    const isSuccess = json.success === true || json.status === "success";
+    if(isSuccess && json.data) document.getElementById('sms-balance').innerText = formatPrice(json.data.balance);
+    else document.getElementById('sms-balance').innerText = "Offline";
 }
 
 async function loadSmsPrices() {
-    try {
-        const json = await apiCall('/get-prices');
-        const box = document.getElementById('sms-prices');
-        if (json.success && json.data.length > 0) {
-            box.innerHTML = json.data.map(i => {
-                let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-                return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}')">
-                            <div style="flex: 1; min-width: 0; padding-right: 10px;"><div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div></div>
-                            <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
-                                <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
-                            </div>
-                        </div>`;
-            }).join('');
-        } else box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">${json.error?.message || json.error || 'Stok Kosong'}</div>`;
-    } catch (e) { document.getElementById('sms-prices').innerHTML = '<div style="padding:30px; text-align:center; color:var(--fb-red);">Gagal Terhubung</div>'; }
+    const json = await apiCall('/get-prices');
+    const box = document.getElementById('sms-prices');
+    const isSuccess = json.success === true || json.status === "success";
+    
+    if (isSuccess && json.data && json.data.length > 0) {
+        box.innerHTML = json.data.map(i => {
+            let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
+            return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}')">
+                        <div style="flex: 1; min-width: 0; padding-right: 10px;"><div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div></div>
+                        <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+                            <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
+                            <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
+                        </div>
+                    </div>`;
+        }).join('');
+    } else { 
+        box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">${json.error?.message || json.message || json.error || 'Stok Kosong'}</div>`;
+    }
 }
 
 export async function buySms(pid, price, name) {
     if (activeProviderKey === "herosms") {
         const box = document.getElementById('sms-prices');
         box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
-        try {
-            const r = await apiCall('/get-operators');
-            const ops = r.success ? r.data : ["any", "telkomsel", "indosat", "axis", "three", "smartfren", "xl"];
-            let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
+        
+        // HANYA 3 PROVIDER SESUAI PERMINTAAN ANDA (TANPA ANY/RANDOM)
+        const ops = ["indosat", "telkomsel", "axis"];
+        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
 
-            ops.forEach(op => {
-                let opName = op === "any" ? "🌟 RANDOM / BEBAS" : op.toUpperCase();
-                html += `<div class="price-item" onclick="executeBuySms('${pid}', ${price}, '${name}', '${op}')">
-                    <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${opName}</div>
-                    <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted); margin-right:5px;"></i>
-                </div>`;
-            });
-            html += `<button class="sms-btn btn-cancel" style="width:100%; margin-top:15px; padding:12px;" onclick="refreshSms()">Batal / Kembali</button>`;
-            box.innerHTML = html;
-        } catch(e) { executeBuySms(pid, price, name, "any"); }
+        ops.forEach(op => {
+            let opName = op.toUpperCase();
+            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${price}, '${name}', '${op}')">
+                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${opName}</div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted); margin-right:5px;"></i>
+            </div>`;
+        });
+        html += `<button class="sms-btn btn-cancel" style="width:100%; margin-top:15px; padding:12px;" onclick="refreshSms()">Batal / Kembali</button>`;
+        box.innerHTML = html;
     } else {
         executeBuySms(pid, price, name, "any");
     }
@@ -185,25 +193,24 @@ export async function executeBuySms(pid, price, name, operator) {
         return;
     }
 
-    try {
-        const payload = activeProviderKey === "herosms" ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
-        const j = await apiCall('/create-order', 'POST', payload);
+    const payload = activeProviderKey === "herosms" ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
+    const j = await apiCall('/create-order', 'POST', payload);
+    const isSuccess = j.success === true || j.status === "success";
 
-        if(j.success) {
-            const o = j.data.orders[0];
-            const newPhone = o.phone || o.phone_number || o.phoneNumber || 'Mencari Nomor...';
-            
-            localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, newPhone);
-            localStorage.setItem(`price_${activeProviderKey}_${o.id}`, price);
-            localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
-            
-            pollSms(); updateSmsBal();
-            setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
-        } else {
-            showModal("Gagal", j.error?.message || j.error || "Gagal memesan stok.", "alert");
-            refreshSms();
-        }
-    } catch(e){ refreshSms(); }
+    if(isSuccess && j.data) {
+        const o = j.data.orders[0];
+        const newPhone = o.phone || o.phone_number || o.phoneNumber || 'Mencari Nomor...';
+        
+        localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, newPhone);
+        localStorage.setItem(`price_${activeProviderKey}_${o.id}`, price);
+        localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
+        
+        pollSms(); updateSmsBal();
+        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
+    } else {
+        showModal("Gagal", j.error?.message || j.message || j.error || "Gagal memesan stok.", "alert");
+        refreshSms();
+    }
 }
 window.executeBuySms = executeBuySms;
 
@@ -211,22 +218,10 @@ window.executeBuySms = executeBuySms;
 // 4. LOGIKA SERVER SYNC (TIMER & UI)
 // ==========================================
 async function pollSms() {
-    try {
-        const j = await apiCall('/get-active');
-        if(j.success) renderSmsOrders(j.data);
-    } catch(e) {}
+    const j = await apiCall('/get-active');
+    const isSuccess = j.success === true || j.status === "success";
+    if(isSuccess && j.data) renderSmsOrders(j.data);
 }
-
-export function copyPhoneNumber(txt, iconId) {
-    if(txt.includes('Mencari')) return;
-    navigator.clipboard.writeText(txt);
-    const icon = document.getElementById(iconId);
-    if(icon) {
-        icon.className = "fa-solid fa-circle-check"; icon.style.color = "var(--fb-green)";
-        setTimeout(() => { icon.className = "fa-regular fa-copy"; icon.style.color = "var(--fb-muted)"; }, 1500);
-    }
-}
-window.copyPhoneNumber = copyPhoneNumber;
 
 function renderSmsOrders(orders) {
     const container = document.getElementById('sms-active-orders');
@@ -309,9 +304,9 @@ function renderSmsOrders(orders) {
                     </div>
                     <span class="sms-timer" data-id="${o.id}" style="font-family:monospace; font-weight:bold; color:var(--fb-blue);">--:--</span>
                 </div>
-                <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Tap untuk salin:</div>
-                <div class="phone-box" onclick="copyPhoneNumber('${phone}', 'copy-icon-${o.id}')">
-                    <span class="phone-text-span">${phone}</span><i id="copy-icon-${o.id}" class="fa-regular fa-copy" style="color: var(--fb-muted);"></i>
+                <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Nomor HP:</div>
+                <div class="phone-box" style="cursor:default;">
+                    <span class="phone-text-span">${phone}</span>
                 </div>
                 <div style="text-align: center; margin: 10px 0 15px 0; padding: 15px 0; background: #fafafa; border-radius: 8px;">
                     <div style="font-size:11px; color:var(--fb-muted); font-weight:bold; letter-spacing:1px; margin-bottom:5px;">KODE OTP</div>
@@ -354,7 +349,7 @@ function updateSmsTimers() {
 }
 
 // ==========================================
-// 5. AKSI ORDER (REPLACE REAL)
+// 5. AKSI ORDER (DIJAMIN TANPA CRASH & NYANGKUT)
 // ==========================================
 export async function actSms(action, id) {
     let title = "Konfirmasi", msg = "Lanjutkan?", type = "confirm";
@@ -365,43 +360,63 @@ export async function actSms(action, id) {
 
     if(!await showModal(title, msg, type)) return;
 
-    try {
-        // PERBAIKAN BUG: Hanya gunakan apiCall saja karena response sudah berupa JSON otomatis
-        const j = await apiCall('/order-action', 'POST', { id, action: action === 'replace' ? 'cancel' : action });
+    const sendAction = action === 'replace' ? 'cancel' : action;
+    const j = await apiCall('/order-action', 'POST', { id, action: sendAction });
+    
+    // Deteksi sukses pintar: Menangkap error palsu dari server saat pesanan nyangkut
+    const errStr = JSON.stringify(j).toUpperCase();
+    let isSuccess = j.success === true || j.status === "success";
+    
+    if (!isSuccess && (action === 'cancel' || action === 'replace' || action === 'finish')) {
+        if (errStr.includes('NOT_FOUND') || errStr.includes('NO_ACTIVATION') || errStr.includes('NOT FOUND') || errStr.includes('ALREADY')) {
+            isSuccess = true; // Anggap sukses agar UI bersih dari pesanan mati
+        }
+    }
 
-        if(j.success || j.error?.code === 'NOT_FOUND') {
-            if(action === 'cancel' || action === 'finish' || action === 'replace') {
-                const pid = localStorage.getItem(`pid_${activeProviderKey}_${id}`);
-                const price = localStorage.getItem(`price_${activeProviderKey}_${id}`);
+    if (errStr.includes('EARLY_CANCEL_DENIED') || errStr.includes('BELUM 2 MENIT')) {
+        isSuccess = false; // Tolak pembatalan jika waktu belum mencapai syarat
+    }
 
-                localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
-                localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
-                localStorage.removeItem(`price_${activeProviderKey}_${id}`);
-                localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
+    if(isSuccess) {
+        if(action === 'resend') {
+            showModal("Info", "Permintaan terkirim.", "alert");
+            pollSms(); return;
+        }
 
-                // Hapus cache lama juga agar benar-benar bersih
-                localStorage.removeItem(`phone_${id}`);
-                localStorage.removeItem(`timer_${id}`);
-                localStorage.removeItem(`price_${id}`);
+        const pid = localStorage.getItem(`pid_${activeProviderKey}_${id}`);
+        const price = localStorage.getItem(`price_${activeProviderKey}_${id}`);
 
-                if (action === 'replace' && pid) {
-                    const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
-                    const n = await apiCall('/create-order', 'POST', payload);
-                    if (n.success) {
-                        const od = n.data.orders[0];
-                        const newPhone = od.phone || od.phone_number || od.phoneNumber || 'Mencari Nomor...';
-                        localStorage.setItem(`phone_${activeProviderKey}_${od.id}`, newPhone);
-                        localStorage.setItem(`price_${activeProviderKey}_${od.id}`, price);
-                        localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
-                        setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
-                    } else { showModal("Gagal Pesan Baru", n.error?.message || n.error || "Gagal mengganti stok.", "alert"); }
-                }
+        // Bersihkan data lokal
+        localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
+        localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
+        localStorage.removeItem(`price_${activeProviderKey}_${id}`);
+        localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
+        localStorage.removeItem(`lock_${activeProviderKey}_${id}`);
+        
+        localStorage.removeItem(`phone_${id}`);
+        localStorage.removeItem(`timer_${id}`);
+        localStorage.removeItem(`price_${id}`);
+
+        if (action === 'replace' && pid) {
+            // Langsung pakai "any" di backend agar mendapatkan nomor pengganti tercepat
+            const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
+            const n = await apiCall('/create-order', 'POST', payload);
+            const nSuccess = n.success === true || n.status === "success";
+            
+            if (nSuccess && n.data) {
+                const od = n.data.orders[0];
+                const newPhone = od.phone || od.phone_number || od.phoneNumber || 'Mencari Nomor...';
+                localStorage.setItem(`phone_${activeProviderKey}_${od.id}`, newPhone);
+                localStorage.setItem(`price_${activeProviderKey}_${od.id}`, price);
+                localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
+                setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
+            } else { 
+                showModal("Gagal Pesan Baru", n.error?.message || n.message || n.error || "Gagal mengganti stok.", "alert"); 
             }
-            pollSms(); updateSmsBal();
-        } else { showModal("Gagal", j.error?.message || j.error || "Ditolak oleh server.", "alert"); }
-    } catch(e){ 
-        console.error(e); // Ini akan mencetak detail error aslinya di console agar lebih transparan
-        showModal("Error", "Gagal terhubung ke server.", "alert"); 
+        }
+        pollSms(); updateSmsBal();
+    } else { 
+        showModal("Gagal", j.error?.message || j.message || j.error || "Ditolak oleh server.", "alert"); 
     }
 }
 window.actSms = actSms;
