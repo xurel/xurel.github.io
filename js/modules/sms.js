@@ -6,7 +6,7 @@ import { showModal } from './ui.js';
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
-    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" } // <--- GANTI URL INI
+    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" } // <-- Ganti Worker SMSBower Anda
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -20,7 +20,6 @@ let timerInterval = null;
 
 let activeOrders = [];
 let orderStates = {};
-let rawPriceData = []; // Menyimpan data asli server untuk merender stok dan rank
 
 // ==========================================
 // 2. INISIALISASI & UI HANDLER
@@ -121,9 +120,6 @@ export function refreshSms() {
 }
 window.refreshSms = refreshSms;
 
-// ==========================================
-// 3. API PENGHANCUR CRASH (ANTI-ERROR)
-// ==========================================
 async function apiCall(endpoint, method = "GET", body = null) {
     const options = { method, headers: { "Content-Type": "application/json", "X-Server-Name": currentServerName } };
     if (body) options.body = JSON.stringify(body);
@@ -153,38 +149,26 @@ async function loadSmsPrices() {
     const isSuccess = json.success === true || json.status === "success";
     
     if (isSuccess && json.data && json.data.length > 0) {
-        rawPriceData = json.data;
-
-        // FILTER HARGA SMS BOWER MAKSIMAL 0.08
-        if (activeProviderKey === "smsbower") {
-            rawPriceData = rawPriceData.filter(i => parseFloat(i.price) <= 0.08);
-        }
-
-        if (rawPriceData.length === 0) {
-            box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">Stok (Max $0.08) Kosong</div>`;
-            return;
-        }
-
-        // Dikelompokkan agar tampilan luar ringkas
-        let grouped = {};
-        rawPriceData.forEach(item => {
-            if (!grouped[item.id]) {
-                grouped[item.id] = { ...item, totalAvailable: item.available, minPrice: item.price };
-            } else {
-                grouped[item.id].totalAvailable += item.available;
-                if (item.price < grouped[item.id].minPrice) grouped[item.id].minPrice = item.price;
-            }
-        });
-
-        let displayData = Object.values(grouped);
-
-        box.innerHTML = displayData.map(i => {
+        // FILTER HARGA DIHAPUS TOTAL DI SINI. TAMPILKAN SEMUA DATA DARI WORKER.
+        box.innerHTML = json.data.map(i => {
             let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-            return `<div class="price-item" onclick="buySms('${i.id}', ${i.minPrice}, '${shortName}')">
-                        <div style="flex: 1; min-width: 0; padding-right: 10px;"><div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div></div>
+            
+            let rankBadge = '';
+            if (activeProviderKey === "herosms" || activeProviderKey === "smsbower") {
+                let r = i.rank || 'S'; 
+                if (r === "G") rankBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">G</span>`;
+                else if (r === "S") rankBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">S</span>`;
+                else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">B</span>`;
+            }
+
+            return `<div class="price-item" onclick="executeBuySms('${i.id}', ${i.price}, '${shortName}', '${i.operator || "any"}')">
+                        <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
+                            <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName} (${i.operator})</div>
+                            ${rankBadge}
+                        </div>
                         <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                            <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.minPrice)}</div>
-                            <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.totalAvailable} stok</div>
+                            <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
+                            <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available || '~'} stok</div>
                         </div>
                     </div>`;
         }).join('');
@@ -193,16 +177,13 @@ async function loadSmsPrices() {
     }
 }
 
-// Helper: Pembuat HTML Kartu (Garis Tepi Penuh Sesuai Warna & Latar Badge)
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
     
-    // Logika Warna Tepi & Latar Badge (Code=Abu, Hero=Ungu, Bower=Hijau)
     let borderColor = "#95a5a6"; 
     if (activeProviderKey === "herosms") borderColor = "#8e44ad";
     if (activeProviderKey === "smsbower") borderColor = "#27ae60";
 
-    // Tombol Replace terkunci permanen untuk SMSBower
     let replaceBtnState = activeProviderKey === "smsbower" ? "disabled" : cancelReplaceState;
     
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
@@ -234,55 +215,15 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceStat
     </div>`;
 }
 
-export async function buySms(pid, price, name) {
-    if (activeProviderKey === "herosms" || activeProviderKey === "smsbower") {
-        const box = document.getElementById('sms-prices');
-        box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
-        
-        let opsData = rawPriceData.filter(p => p.id === pid);
-        
-        // Fallback Jika API HeroSMS lama belum direfresh
-        if (opsData.length > 0 && !opsData[0].operator) {
-            const manualOps = ["indosat", "telkomsel", "axis", "three"];
-            opsData = manualOps.map(op => ({ operator: op, price: price, available: "~", rank: "S" }));
-        }
-
-        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk ${name}</div>`;
-
-        opsData.forEach(opItem => {
-            let opName = (opItem.operator || "any").toUpperCase().replace(/_GOLD|_SILVER|_BRONZE/g, '');
-            let stock = opItem.available || "~";
-            let opPrice = opItem.price || price;
-            
-            // DESAIN CSS METALLIC GRADIENT UNTUK LOGO RANKING
-            let rankBadge = '';
-            let r = opItem.rank || "S";
-            if (r === "G") rankBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; border: 1px solid #d35400; margin-left:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">G</span>`;
-            else if (r === "S") rankBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; border: 1px solid #7f8c8d; margin-left:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">S</span>`;
-            else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; border: 1px solid #a04000; margin-left:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">B</span>`;
-
-            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${opPrice}, '${name}', '${opItem.operator || "any"}')">
-                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text); display:flex; align-items:center;">
-                    ${opName} ${rankBadge}
-                </div>
-                <div style="font-size:12px; color:var(--fb-muted); margin-right:10px;">${stock} stok</div>
-                <div style="font-weight:900; color:var(--fb-red); margin-right:10px;">${formatPrice(opPrice)}</div>
-                <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
-            </div>`;
-        });
-        html += `<button class="sms-btn btn-cancel" style="width:100%; margin-top:15px; padding:12px;" onclick="refreshSms()">Batal / Kembali</button>`;
-        box.innerHTML = html;
-    } else {
-        executeBuySms(pid, price, name, "any");
-    }
+export async function buySms(pid, price, name, stock = "~") {
+    executeBuySms(pid, price, name, "any");
 }
 window.buySms = buySms;
 
 export async function executeBuySms(pid, price, name, operator) {
     const pText = formatPrice(price);
-    const opText = operator !== "any" ? ` (Prov: ${operator.toUpperCase().replace(/_GOLD|_SILVER|_BRONZE/g, '')})` : "";
+    const opText = operator !== "any" ? ` (ID: ${operator})` : "";
     if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) {
-        if(activeProviderKey !== "smscode") refreshSms();
         return;
     }
 
@@ -312,9 +253,6 @@ export async function executeBuySms(pid, price, name, operator) {
 }
 window.executeBuySms = executeBuySms;
 
-// ==========================================
-// 4. LOGIKA SERVER SYNC & UI RENDER
-// ==========================================
 async function pollSms() {
     const j = await apiCall('/get-active');
     const isSuccess = j.success === true || j.status === "success";
@@ -422,8 +360,6 @@ function renderSmsOrders(orders) {
                 const btnCancel = existingCard.querySelector('.btn-cancel');
                 const btnReplace = existingCard.querySelector('.btn-replace');
                 if(btnCancel) btnCancel.disabled = false;
-                
-                // Mencegah Tombol Replace terbuka jika provider adalah Bower
                 if(btnReplace && btnReplace.disabled && activeProviderKey !== "smsbower") btnReplace.disabled = false;
             }
         } else {
@@ -445,7 +381,6 @@ async function autoCancelSilent(id) {
 
 function updateSmsTimers() {
     const now = Date.now();
-    
     document.querySelectorAll('.sms-timer').forEach(el => {
         const id = el.dataset.id;
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${id}`)) || parseInt(localStorage.getItem('timer_' + id));
@@ -461,7 +396,6 @@ function updateSmsTimers() {
                     const btnCancel = existingCard.querySelector('.btn-cancel'); 
                     const btnReplace = existingCard.querySelector('.btn-replace'); 
                     if(btnCancel && btnCancel.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnCancel.disabled = false; 
-                    
                     if(activeProviderKey !== "smsbower") {
                         if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnReplace.disabled = false; 
                     }
@@ -472,7 +406,6 @@ function updateSmsTimers() {
 
     activeOrders.forEach(o => {
         if (o.otp_code) return; 
-        
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
         if (end) {
             const timeLeft = end - now;
@@ -487,9 +420,6 @@ function updateSmsTimers() {
     });
 }
 
-// ==========================================
-// 5. AKSI ORDER (GANTI NOMOR DI TEMPAT)
-// ==========================================
 export async function actSms(action, id) {
     if (action === 'replace' && activeProviderKey === "smsbower") {
         showModal("Peringatan", "Fitur Replace tidak didukung oleh SMSBower.", "alert");
