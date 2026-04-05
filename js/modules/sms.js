@@ -147,16 +147,18 @@ async function loadSmsPrices() {
             let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
             
             let rankBadge = '';
-            if (activeProviderKey === "herosms" || activeProviderKey === "smsbower") {
+            if (activeProviderKey === "smsbower") {
                 let r = i.rank || 'S'; 
-                if (r === "G") rankBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">G</span>`;
-                else if (r === "S") rankBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">S</span>`;
-                else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">B</span>`;
+                if (r === "G") rankBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px; border:1px solid #d35400;">G</span>`;
+                else if (r === "S") rankBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px; border:1px solid #7f8c8d;">S</span>`;
+                else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px; border:1px solid #a04000;">B</span>`;
             }
 
-            let idLabel = i.operator !== "any" ? ` (ID: ${i.operator})` : "";
-            
-            return `<div class="price-item" onclick="executeBuySms('${i.id}', ${i.price}, '${shortName}', '${i.operator}')">
+            let idLabel = (activeProviderKey === "smsbower" && i.operator !== "any") ? ` <span style="color:#aaa;">(ID: ${i.operator})</span>` : "";
+            let extra = activeProviderKey === "smsbower" ? i.operator : (i.available || "~");
+            let rankParam = i.rank || "S";
+
+            return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}', '${extra}', '${rankParam}')">
                         <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
                             <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}${idLabel}</div>
                             ${rankBadge}
@@ -172,21 +174,19 @@ async function loadSmsPrices() {
     }
 }
 
-function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
+function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
     
     let borderColor = "#95a5a6"; 
     if (activeProviderKey === "herosms") borderColor = "#8e44ad";
     if (activeProviderKey === "smsbower") borderColor = "#27ae60";
-
-    let replaceBtnState = activeProviderKey === "smsbower" ? "disabled" : cancelReplaceState;
     
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${oId}</span>
                 <span class="badge-status" style="font-size:10px; color:#fff; font-family:sans-serif; background:${borderColor}; padding:3px 6px; border-radius:4px; font-weight:bold;">ACTIVE</span>
-                <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">${priceDisplay}</span>
+                <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace; display:flex; align-items:center;">${priceDisplay}</span>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <i class="fa-regular fa-eye-slash hide-btn-icon" onclick="hideSmsCard(${oId})" style="color: var(--fb-muted); cursor:pointer; font-size:14px; padding: 5px;"></i>
@@ -204,19 +204,48 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceStat
         <div class="btn-grid-4">
             <button class="sms-btn btn-done" onclick="actSms('finish', ${oId})" ${doneStyle}>✓ DONE</button>
             <button class="sms-btn btn-resend" onclick="actSms('resend', ${oId})" ${resendState}>↻ RESEND</button>
-            <button class="sms-btn btn-cancel" onclick="actSms('cancel', ${oId})" ${cancelReplaceState}>✕ CANCEL</button>
-            <button class="sms-btn btn-replace" onclick="actSms('replace', ${oId})" ${replaceBtnState}>⇄ REPLACE</button>
+            <button class="sms-btn btn-cancel" onclick="actSms('cancel', ${oId})" ${cancelState}>✕ CANCEL</button>
+            <button class="sms-btn btn-replace" onclick="actSms('replace', ${oId})" ${replaceState}>⇄ REPLACE</button>
         </div>
     </div>`;
 }
 
-export async function buySms(pid, price, name, stock = "~") { executeBuySms(pid, price, name, "any"); }
+export async function buySms(pid, price, name, extra = "~", rank = "S") {
+    if (activeProviderKey === "herosms") {
+        const box = document.getElementById('sms-prices');
+        box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
+        
+        const ops = ["indosat", "telkomsel", "axis", "three"];
+        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
+
+        ops.forEach(op => {
+            let opName = op.toUpperCase();
+            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${price}, '${name}', '${op}', '')">
+                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${opName}</div>
+                <div style="font-size:12px; color:var(--fb-muted); margin-right:10px;">~ stok</div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
+            </div>`;
+        });
+        html += `<button class="sms-btn btn-cancel" style="width:100%; margin-top:15px; padding:12px;" onclick="refreshSms()">Batal / Kembali</button>`;
+        box.innerHTML = html;
+    } else if (activeProviderKey === "smsbower") {
+        executeBuySms(pid, price, name, extra, rank);
+    } else {
+        executeBuySms(pid, price, name, "any", "");
+    }
+}
 window.buySms = buySms;
 
-export async function executeBuySms(pid, price, name, operator) {
+export async function executeBuySms(pid, price, name, operator, rank = "") {
     const pText = formatPrice(price);
-    const opText = operator !== "any" ? ` (ID: ${operator})` : "";
-    if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) return;
+    let opText = "";
+    if (activeProviderKey === "herosms" && operator !== "any") opText = ` (Prov: ${operator.toUpperCase()})`;
+    else if (activeProviderKey === "smsbower" && operator !== "any") opText = ` (ID: ${operator})`;
+
+    if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) {
+        if(activeProviderKey === "herosms") refreshSms();
+        return;
+    }
 
     const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower") ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
     const j = await apiCall('/create-order', 'POST', payload);
@@ -231,21 +260,47 @@ export async function executeBuySms(pid, price, name, operator) {
         localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
         localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, Date.now() + (20 * 60000));
         
+        if (operator) localStorage.setItem(`op_${activeProviderKey}_${o.id}`, operator);
+        if (rank) localStorage.setItem(`rank_${activeProviderKey}_${o.id}`, rank);
+
+        let extraBadge = "";
+        if (activeProviderKey === "herosms" && operator && operator !== "any") {
+            let initial = operator.charAt(0).toUpperCase();
+            extraBadge = `<span style="font-size:12px; font-family:sans-serif; font-weight:900; color:#fff; margin-left:8px; background:var(--fb-blue); padding:1px 6px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${initial}</span>`;
+        } else if (activeProviderKey === "smsbower" && rank) {
+            if (rank === "G") extraBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #d35400;">G</span>`;
+            else if (rank === "S") extraBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #7f8c8d;">S</span>`;
+            else if (rank === "B") extraBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #a04000;">B</span>`;
+        }
+        
+        const priceDisplay = formatPrice(price) + extraBadge;
+        let cancelState = activeProviderKey === "smsbower" ? '' : 'disabled';
+        let replaceState = 'disabled'; // Awal order pasti disabled
+
         const container = document.getElementById('sms-active-orders');
-        const cardHTML = createCardHTML(o.id, newPhone, formatPrice(price), 'disabled', 'disabled', `<div class="loader-bars"><span></span><span></span><span></span></div>`);
+        const cardHTML = createCardHTML(o.id, newPhone, priceDisplay, 'disabled', cancelState, replaceState, `<div class="loader-bars"><span></span><span></span><span></span></div>`);
         container.insertAdjacentHTML('afterbegin', cardHTML);
 
         pollSms(); updateSmsBal();
         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
     } else {
         showModal("Gagal", j.error?.message || j.message || j.error || "Gagal memesan stok.", "alert");
-        refreshSms();
+        if(activeProviderKey === "herosms") refreshSms();
     }
 }
 window.executeBuySms = executeBuySms;
 
+// ==========================================
+// 4. LOGIKA SERVER SYNC (ANTI HILANG)
+// ==========================================
 async function pollSms() {
-    const j = await apiCall('/get-active');
+    let localIds = [];
+    for(let i=0; i<localStorage.length; i++) {
+        let k = localStorage.key(i);
+        if(k.startsWith(`phone_${activeProviderKey}_`)) localIds.push(k.split('_')[2]);
+    }
+
+    const j = await apiCall('/get-active', 'POST', { ids: localIds });
     const isSuccess = j.success === true || j.status === "success";
     if(isSuccess && j.data) {
         activeOrders = j.data; 
@@ -288,7 +343,6 @@ function renderSmsOrders(orders) {
     orders.forEach(o => {
         if (orderStates[o.id] && orderStates[o.id].isHidden) return;
 
-        // Memaksa UI menulis ulang data dari Database KV Cloudflare ke HP yang baru dibuka
         const serverPhone = o.phone || o.phone_number || o.phoneNumber;
         const phone = serverPhone || localStorage.getItem(`phone_${activeProviderKey}_${o.id}`) || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
         if(serverPhone) localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, serverPhone);
@@ -318,11 +372,28 @@ function renderSmsOrders(orders) {
             if (remaining <= 1080) passed2Mins = true; 
         }
 
+        // Terapkan Badge (Inisial Hero / Rank Bower) dari Memory
+        const savedOp = localStorage.getItem(`op_${activeProviderKey}_${o.id}`) || "";
+        const savedRank = localStorage.getItem(`rank_${activeProviderKey}_${o.id}`) || "";
+        let extraBadge = "";
+        
+        if (activeProviderKey === "herosms" && savedOp && savedOp !== "any") {
+            let initial = savedOp.charAt(0).toUpperCase();
+            extraBadge = `<span style="font-size:12px; font-family:sans-serif; font-weight:900; color:#fff; margin-left:8px; background:var(--fb-blue); padding:1px 6px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${initial}</span>`;
+        } else if (activeProviderKey === "smsbower" && savedRank) {
+            if (savedRank === "G") extraBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #d35400;">G</span>`;
+            else if (savedRank === "S") extraBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #7f8c8d;">S</span>`;
+            else if (savedRank === "B") extraBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #a04000;">B</span>`;
+        }
+
+        const priceDisplay = (serverPrice ? formatPrice(serverPrice) : '...') + extraBadge;
         const resendState = o.otp_code ? '' : 'disabled';
-        const cancelReplaceState = passed2Mins ? '' : 'disabled';
         const isDone = !!o.otp_code;
         let otpDisplay = o.otp_code ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp_code}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
-        const priceDisplay = serverPrice ? formatPrice(serverPrice) : '...';
+        
+        // Logika Tombol Sesuai Permintaan
+        const cancelState = (passed2Mins || activeProviderKey === "smsbower") && !o.otp_code ? '' : 'disabled';
+        const replaceState = (passed2Mins && activeProviderKey !== "smsbower") && !o.otp_code ? '' : 'disabled';
 
         const cardId = `order-${activeProviderKey}-${o.id}`;
         const existingCard = document.getElementById(cardId);
@@ -339,23 +410,27 @@ function renderSmsOrders(orders) {
             if (otpContainer.innerHTML.trim() !== otpDisplay.trim()) otpContainer.innerHTML = otpDisplay;
 
             const priceBox = existingCard.querySelector('.price-box');
-            if (priceBox && priceBox.innerText.includes('...') && serverPrice) priceBox.innerText = priceDisplay;
+            if (priceBox && serverPrice) priceBox.innerHTML = priceDisplay;
 
             if (o.otp_code) {
                 const btnDone = existingCard.querySelector('.btn-done');
                 if(btnDone && btnDone.disabled) { btnDone.disabled = false; btnDone.style.color = "var(--fb-green)"; btnDone.style.borderColor = "var(--fb-green)"; btnDone.style.background = "#e6f4ea"; }
                 const btnResend = existingCard.querySelector('.btn-resend');
                 if(btnResend && btnResend.disabled) btnResend.disabled = false;
-            }
-
-            if (passed2Mins && !o.otp_code) {
+                
                 const btnCancel = existingCard.querySelector('.btn-cancel');
+                if(btnCancel) btnCancel.disabled = true;
                 const btnReplace = existingCard.querySelector('.btn-replace');
-                if(btnCancel) btnCancel.disabled = false;
-                if(btnReplace && btnReplace.disabled && activeProviderKey !== "smsbower") btnReplace.disabled = false;
+                if(btnReplace) btnReplace.disabled = true;
+            } else {
+                const btnCancel = existingCard.querySelector('.btn-cancel');
+                if(btnCancel && btnCancel.disabled && (passed2Mins || activeProviderKey === "smsbower")) btnCancel.disabled = false;
+                
+                const btnReplace = existingCard.querySelector('.btn-replace');
+                if(btnReplace && btnReplace.disabled && (passed2Mins && activeProviderKey !== "smsbower")) btnReplace.disabled = false;
             }
         } else {
-            const cardHTML = createCardHTML(o.id, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone);
+            const cardHTML = createCardHTML(o.id, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone);
             container.insertAdjacentHTML('afterbegin', cardHTML);
         }
     });
@@ -368,6 +443,8 @@ async function autoCancelSilent(id) {
     localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
     localStorage.removeItem(`price_${activeProviderKey}_${id}`);
     localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
+    localStorage.removeItem(`op_${activeProviderKey}_${id}`);
+    localStorage.removeItem(`rank_${activeProviderKey}_${id}`);
     pollSms(); updateSmsBal();
 }
 
@@ -382,21 +459,21 @@ function updateSmsTimers() {
             el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
             el.style.color = diff < 600 ? "var(--fb-red)" : "var(--fb-blue)"; 
             
-            if (diff <= 1080) { 
+            if (diff <= 1080 || activeProviderKey === "smsbower") { 
                 const existingCard = document.getElementById(`order-${activeProviderKey}-${id}`); 
-                if(existingCard) { 
+                if(existingCard && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) { 
                     const btnCancel = existingCard.querySelector('.btn-cancel'); 
-                    const btnReplace = existingCard.querySelector('.btn-replace'); 
-                    if(btnCancel && btnCancel.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnCancel.disabled = false; 
-                    if(activeProviderKey !== "smsbower") {
-                        if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnReplace.disabled = false; 
+                    if(btnCancel && btnCancel.disabled) btnCancel.disabled = false; 
+                    
+                    if(activeProviderKey !== "smsbower" && diff <= 1080) {
+                        const btnReplace = existingCard.querySelector('.btn-replace'); 
+                        if(btnReplace && btnReplace.disabled) btnReplace.disabled = false; 
                     }
                 } 
             }
         }
     });
 
-    // 🌟 AUTO CANCEL 10 MENIT AKTIF DI HP MANAPUN YANG SEDANG DIBUKA
     activeOrders.forEach(o => {
         if (o.otp_code) return; 
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
@@ -458,11 +535,14 @@ export async function actSms(action, id) {
 
         const pid = localStorage.getItem(`pid_${activeProviderKey}_${id}`);
         const price = localStorage.getItem(`price_${activeProviderKey}_${id}`);
+        const oldOp = localStorage.getItem(`op_${activeProviderKey}_${id}`) || "any";
 
         localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
         localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
         localStorage.removeItem(`price_${activeProviderKey}_${id}`);
         localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
+        localStorage.removeItem(`op_${activeProviderKey}_${id}`);
+        localStorage.removeItem(`rank_${activeProviderKey}_${id}`);
         localStorage.removeItem(`phone_${id}`); localStorage.removeItem(`timer_${id}`); localStorage.removeItem(`price_${id}`);
 
         if (action === 'cancel' || action === 'finish') {
@@ -472,7 +552,7 @@ export async function actSms(action, id) {
 
         if (action === 'replace' && pid) {
             delete orderStates[id]; 
-            const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
+            const payload = activeProviderKey === "herosms" ? { product_id: String(pid), price: price, operator: oldOp } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
             
@@ -484,6 +564,7 @@ export async function actSms(action, id) {
                 localStorage.setItem(`price_${activeProviderKey}_${od.id}`, price);
                 localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
                 localStorage.setItem(`timer_${activeProviderKey}_${od.id}`, Date.now() + (20 * 60000));
+                localStorage.setItem(`op_${activeProviderKey}_${od.id}`, oldOp);
 
                 const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
                 if (oldCard) {
