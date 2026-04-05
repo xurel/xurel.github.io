@@ -5,7 +5,8 @@ import { showModal } from './ui.js';
 // ==========================================
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
-    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" }
+    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
+    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" } // <--- GANTI URL INI
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -17,9 +18,9 @@ let isSmsLocked = false;
 let pollingInterval = null;
 let timerInterval = null;
 
-// State Lokal untuk UI
 let activeOrders = [];
 let orderStates = {};
+let rawPriceData = []; // Menyimpan data asli server untuk merender stok dan rank
 
 // ==========================================
 // 2. INISIALISASI & UI HANDLER
@@ -28,6 +29,7 @@ window.addEventListener('appSwitched', (e) => { if(e.detail === 'sms' && !smsIni
 
 function formatPrice(price) {
     if (activeProviderKey === "herosms") return `${price}`;
+    if (activeProviderKey === "smsbower") return `$ ${price}`;
     return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`;
 }
 
@@ -151,14 +153,38 @@ async function loadSmsPrices() {
     const isSuccess = json.success === true || json.status === "success";
     
     if (isSuccess && json.data && json.data.length > 0) {
-        box.innerHTML = json.data.map(i => {
+        rawPriceData = json.data;
+
+        // FILTER HARGA SMS BOWER MAKSIMAL 0.08
+        if (activeProviderKey === "smsbower") {
+            rawPriceData = rawPriceData.filter(i => parseFloat(i.price) <= 0.08);
+        }
+
+        if (rawPriceData.length === 0) {
+            box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">Stok (Max $0.08) Kosong</div>`;
+            return;
+        }
+
+        // Dikelompokkan agar tampilan luar ringkas
+        let grouped = {};
+        rawPriceData.forEach(item => {
+            if (!grouped[item.id]) {
+                grouped[item.id] = { ...item, totalAvailable: item.available, minPrice: item.price };
+            } else {
+                grouped[item.id].totalAvailable += item.available;
+                if (item.price < grouped[item.id].minPrice) grouped[item.id].minPrice = item.price;
+            }
+        });
+
+        let displayData = Object.values(grouped);
+
+        box.innerHTML = displayData.map(i => {
             let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-            // Menambahkan i.available ke parameter fungsi buySms
-            return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}', ${i.available})">
+            return `<div class="price-item" onclick="buySms('${i.id}', ${i.minPrice}, '${shortName}')">
                         <div style="flex: 1; min-width: 0; padding-right: 10px;"><div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}</div></div>
                         <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                            <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
-                            <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available} stok</div>
+                            <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.minPrice)}</div>
+                            <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.totalAvailable} stok</div>
                         </div>
                     </div>`;
         }).join('');
@@ -167,17 +193,23 @@ async function loadSmsPrices() {
     }
 }
 
-// Helper: Pembuat Elemen HTML Kartu (Garis Tepi Penuh Sesuai Warna)
+// Helper: Pembuat HTML Kartu (Garis Tepi Penuh Sesuai Warna & Latar Badge)
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
-    const borderColor = activeProviderKey === "herosms" ? "#8e44ad" : "#95a5a6"; 
     
-    // Perubahan border: Menerapkan garis tepi ke semua sisi dengan ketebalan 2px
+    // Logika Warna Tepi & Latar Badge (Code=Abu, Hero=Ungu, Bower=Hijau)
+    let borderColor = "#95a5a6"; 
+    if (activeProviderKey === "herosms") borderColor = "#8e44ad";
+    if (activeProviderKey === "smsbower") borderColor = "#27ae60";
+
+    // Tombol Replace terkunci permanen untuk SMSBower
+    let replaceBtnState = activeProviderKey === "smsbower" ? "disabled" : cancelReplaceState;
+    
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${oId}</span>
-                <span class="badge-status" style="font-size:10px; color:var(--fb-text); font-family:sans-serif; background:rgba(0,0,0,0.1);">ACTIVE</span>
+                <span class="badge-status" style="font-size:10px; color:#fff; font-family:sans-serif; background:${borderColor}; padding:3px 6px; border-radius:4px; font-weight:bold;">ACTIVE</span>
                 <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace;">${priceDisplay}</span>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
@@ -197,25 +229,44 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceStat
             <button class="sms-btn btn-done" onclick="actSms('finish', ${oId})" ${doneStyle}>✓ DONE</button>
             <button class="sms-btn btn-resend" onclick="actSms('resend', ${oId})" ${resendState}>↻ RESEND</button>
             <button class="sms-btn btn-cancel" onclick="actSms('cancel', ${oId})" ${cancelReplaceState}>✕ CANCEL</button>
-            <button class="sms-btn btn-replace" onclick="actSms('replace', ${oId})" ${cancelReplaceState}>⇄ REPLACE</button>
+            <button class="sms-btn btn-replace" onclick="actSms('replace', ${oId})" ${replaceBtnState}>⇄ REPLACE</button>
         </div>
     </div>`;
 }
 
-// Menambahkan argumen 'stock' untuk menampilkan jumlah stok
-export async function buySms(pid, price, name, stock = "~") {
-    if (activeProviderKey === "herosms") {
+export async function buySms(pid, price, name) {
+    if (activeProviderKey === "herosms" || activeProviderKey === "smsbower") {
         const box = document.getElementById('sms-prices');
         box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
         
-        const ops = ["indosat", "telkomsel", "axis", "three"];
-        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
+        let opsData = rawPriceData.filter(p => p.id === pid);
+        
+        // Fallback Jika API HeroSMS lama belum direfresh
+        if (opsData.length > 0 && !opsData[0].operator) {
+            const manualOps = ["indosat", "telkomsel", "axis", "three"];
+            opsData = manualOps.map(op => ({ operator: op, price: price, available: "~", rank: "S" }));
+        }
 
-        ops.forEach(op => {
-            let opName = op.toUpperCase();
-            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${price}, '${name}', '${op}')">
-                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${opName}</div>
+        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk ${name}</div>`;
+
+        opsData.forEach(opItem => {
+            let opName = (opItem.operator || "any").toUpperCase().replace(/_GOLD|_SILVER|_BRONZE/g, '');
+            let stock = opItem.available || "~";
+            let opPrice = opItem.price || price;
+            
+            // DESAIN CSS METALLIC GRADIENT UNTUK LOGO RANKING
+            let rankBadge = '';
+            let r = opItem.rank || "S";
+            if (r === "G") rankBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; border: 1px solid #d35400; margin-left:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">G</span>`;
+            else if (r === "S") rankBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; border: 1px solid #7f8c8d; margin-left:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">S</span>`;
+            else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; border: 1px solid #a04000; margin-left:6px; box-shadow: 0 1px 2px rgba(0,0,0,0.2);">B</span>`;
+
+            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${opPrice}, '${name}', '${opItem.operator || "any"}')">
+                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text); display:flex; align-items:center;">
+                    ${opName} ${rankBadge}
+                </div>
                 <div style="font-size:12px; color:var(--fb-muted); margin-right:10px;">${stock} stok</div>
+                <div style="font-weight:900; color:var(--fb-red); margin-right:10px;">${formatPrice(opPrice)}</div>
                 <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
             </div>`;
         });
@@ -229,13 +280,13 @@ window.buySms = buySms;
 
 export async function executeBuySms(pid, price, name, operator) {
     const pText = formatPrice(price);
-    const opText = operator !== "any" ? ` (Prov: ${operator.toUpperCase()})` : "";
+    const opText = operator !== "any" ? ` (Prov: ${operator.toUpperCase().replace(/_GOLD|_SILVER|_BRONZE/g, '')})` : "";
     if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) {
-        if(activeProviderKey === "herosms") refreshSms();
+        if(activeProviderKey !== "smscode") refreshSms();
         return;
     }
 
-    const payload = activeProviderKey === "herosms" ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
+    const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower") ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
     const j = await apiCall('/create-order', 'POST', payload);
     const isSuccess = j.success === true || j.status === "success";
 
@@ -371,7 +422,9 @@ function renderSmsOrders(orders) {
                 const btnCancel = existingCard.querySelector('.btn-cancel');
                 const btnReplace = existingCard.querySelector('.btn-replace');
                 if(btnCancel) btnCancel.disabled = false;
-                if(btnReplace) btnReplace.disabled = false;
+                
+                // Mencegah Tombol Replace terbuka jika provider adalah Bower
+                if(btnReplace && btnReplace.disabled && activeProviderKey !== "smsbower") btnReplace.disabled = false;
             }
         } else {
             const cardHTML = createCardHTML(o.id, phone, priceDisplay, resendState, cancelReplaceState, otpDisplay, isDone);
@@ -408,7 +461,10 @@ function updateSmsTimers() {
                     const btnCancel = existingCard.querySelector('.btn-cancel'); 
                     const btnReplace = existingCard.querySelector('.btn-replace'); 
                     if(btnCancel && btnCancel.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnCancel.disabled = false; 
-                    if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnReplace.disabled = false; 
+                    
+                    if(activeProviderKey !== "smsbower") {
+                        if(btnReplace && btnReplace.disabled && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) btnReplace.disabled = false; 
+                    }
                 } 
             }
         }
@@ -435,6 +491,11 @@ function updateSmsTimers() {
 // 5. AKSI ORDER (GANTI NOMOR DI TEMPAT)
 // ==========================================
 export async function actSms(action, id) {
+    if (action === 'replace' && activeProviderKey === "smsbower") {
+        showModal("Peringatan", "Fitur Replace tidak didukung oleh SMSBower.", "alert");
+        return;
+    }
+
     let title = "Konfirmasi", msg = "Lanjutkan?", type = "confirm";
     if(action === 'cancel') { title = "Batalkan"; msg = "Yakin batalkan pesanan ini? Saldo dikembalikan."; type = "danger"; }
     if(action === 'replace') { title = "Ganti Nomor"; msg = "Batalkan pesanan ini dan ganti nomor baru?"; }
@@ -488,7 +549,7 @@ export async function actSms(action, id) {
 
         if (action === 'replace' && pid) {
             delete orderStates[id]; 
-            const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
+            const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower") ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
             
