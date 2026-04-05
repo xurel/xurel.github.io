@@ -6,7 +6,7 @@ import { showModal } from './ui.js';
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
-    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" } // <-- Ganti Worker SMSBower Anda
+    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" }
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -21,9 +21,6 @@ let timerInterval = null;
 let activeOrders = [];
 let orderStates = {};
 
-// ==========================================
-// 2. INISIALISASI & UI HANDLER
-// ==========================================
 window.addEventListener('appSwitched', (e) => { if(e.detail === 'sms' && !smsInitialized) initSms(); });
 
 function formatPrice(price) {
@@ -126,11 +123,8 @@ async function apiCall(endpoint, method = "GET", body = null) {
     try {
         const res = await fetch(`${BASE_URL}${endpoint}`, options);
         const text = await res.text(); 
-        try {
-            return JSON.parse(text); 
-        } catch(e) {
-            return { success: res.ok, status: res.ok ? "success" : "failed", error: { message: text || "Format server tidak sesuai" } };
-        }
+        try { return JSON.parse(text); } 
+        catch(e) { return { success: res.ok, status: res.ok ? "success" : "failed", error: { message: text || "Format server tidak sesuai" } }; }
     } catch(err) {
         return { success: false, error: { message: "Jaringan terputus / Server Sibuk" } };
     }
@@ -149,7 +143,6 @@ async function loadSmsPrices() {
     const isSuccess = json.success === true || json.status === "success";
     
     if (isSuccess && json.data && json.data.length > 0) {
-        // FILTER HARGA DIHAPUS TOTAL DI SINI. TAMPILKAN SEMUA DATA DARI WORKER.
         box.innerHTML = json.data.map(i => {
             let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
             
@@ -161,9 +154,11 @@ async function loadSmsPrices() {
                 else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px;">B</span>`;
             }
 
-            return `<div class="price-item" onclick="executeBuySms('${i.id}', ${i.price}, '${shortName}', '${i.operator || "any"}')">
+            let idLabel = i.operator !== "any" ? ` (ID: ${i.operator})` : "";
+            
+            return `<div class="price-item" onclick="executeBuySms('${i.id}', ${i.price}, '${shortName}', '${i.operator}')">
                         <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
-                            <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName} (${i.operator})</div>
+                            <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}${idLabel}</div>
                             ${rankBadge}
                         </div>
                         <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
@@ -215,17 +210,13 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelReplaceStat
     </div>`;
 }
 
-export async function buySms(pid, price, name, stock = "~") {
-    executeBuySms(pid, price, name, "any");
-}
+export async function buySms(pid, price, name, stock = "~") { executeBuySms(pid, price, name, "any"); }
 window.buySms = buySms;
 
 export async function executeBuySms(pid, price, name, operator) {
     const pText = formatPrice(price);
     const opText = operator !== "any" ? ` (ID: ${operator})` : "";
-    if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) {
-        return;
-    }
+    if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) return;
 
     const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower") ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
     const j = await apiCall('/create-order', 'POST', payload);
@@ -297,6 +288,7 @@ function renderSmsOrders(orders) {
     orders.forEach(o => {
         if (orderStates[o.id] && orderStates[o.id].isHidden) return;
 
+        // Memaksa UI menulis ulang data dari Database KV Cloudflare ke HP yang baru dibuka
         const serverPhone = o.phone || o.phone_number || o.phoneNumber;
         const phone = serverPhone || localStorage.getItem(`phone_${activeProviderKey}_${o.id}`) || localStorage.getItem('phone_'+o.id) || 'Mencari Nomor...';
         if(serverPhone) localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, serverPhone);
@@ -404,6 +396,7 @@ function updateSmsTimers() {
         }
     });
 
+    // 🌟 AUTO CANCEL 10 MENIT AKTIF DI HP MANAPUN YANG SEDANG DIBUKA
     activeOrders.forEach(o => {
         if (o.otp_code) return; 
         const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
@@ -479,7 +472,7 @@ export async function actSms(action, id) {
 
         if (action === 'replace' && pid) {
             delete orderStates[id]; 
-            const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower") ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
+            const payload = activeProviderKey === "herosms" ? { product_id: pid, price: price, operator: "any" } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
             
