@@ -36,98 +36,110 @@ export async function generateName() {
         localStorage.setItem('xurel_used_names', JSON.stringify(namaTerpakai));
 
         // ==========================================
-        // 2. ACAK NOMOR HP
+        // 2. ACAK NOMOR HP (REALISTIS & SESUAI PROVIDER INDONESIA)
         // ==========================================
-        const noHp = fakerObj.phone.phoneNumber('08##########');
+        const prefixProvider = [
+            // Telkomsel
+            '0811', '0812', '0813', '0821', '0822', '0851', '0852', '0853',
+            // Indosat
+            '0814', '0815', '0816', '0855', '0856', '0857', '0858',
+            // XL / Axis
+            '0817', '0818', '0819', '0859', '0877', '0878', '0831', '0832', '0833', '0838',
+            // Tri (3)
+            '0895', '0896', '0897', '0898', '0899',
+            // Smartfren
+            '0881', '0882', '0883', '0884', '0885', '0886', '0887', '0888', '0889'
+        ];
+        // Pilih awalan secara acak
+        const prefix = prefixProvider[Math.floor(Math.random() * prefixProvider.length)];
+        // Generate sisa digit agar total pas 12 digit (Prefix 4 digit + 8 digit acak)
+        const sisaDigit = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
+        const noHp = prefix + sisaDigit;
         
         // ==========================================
-        // 3. ACAK PROVINSI DAN KOTA (SUPER LENGKAP)
+        // 3. ACAK PROVINSI, KOTA & KODE POS (DENGAN BOBOT REGIONAL)
         // ==========================================
+        // Weight: Semakin tinggi angkanya, semakin sering provinsinya muncul.
+        // ZipPrefix: Awalan kodepos resmi sesuai pulau/provinsi.
         const daerah = [
-            // SUMATERA
-            { prov: "NANGGROE ACEH DARUSSALAM", kota: ["BANDA ACEH", "SABANG", "LHOKSEUMAWE", "LANGSA", "SUBULUSSALAM", "ACEH BESAR", "PIDIE", "BIREUEN", "ACEH UTARA", "ACEH TIMUR", "ACEH BARAT", "ACEH SELATAN", "ACEH TENGAH", "GAYO LUES", "SIMEULUE"] },
-            { prov: "SUMATERA UTARA", kota: ["MEDAN", "BINJAI", "PEMATANGSIANTAR", "TANJUNG BALAI", "TEBING TINGGI", "SIBOLGA", "PADANGSIDIMPUAN", "DELI SERDANG", "LANGKAT", "KARO", "SIMALUNGUN", "ASAHAN", "LABUHANBATU", "TAPANULI UTARA", "TAPANULI SELATAN", "NIAS", "MANDAILING NATAL", "TOBA SAMOSIR"] },
-            { prov: "SUMATERA BARAT", kota: ["PADANG", "BUKITTINGGI", "PAYAKUMBUH", "PARIAMAN", "SOLOK", "SAWAHLUNTO", "PADANG PANJANG", "AGAM", "LIMA PULUH KOTA", "TANAH DATAR", "PESISIR SELATAN", "PASAMAN", "MENTAWAI", "DHARMASRAYA"] },
-            { prov: "RIAU", kota: ["PEKANBARU", "DUMAI", "BENGKALIS", "INDRAGIRI HILIR", "INDRAGIRI HULU", "KAMPAR", "KUANTAN SINGINGI", "PELALAWAN", "ROKAN HILIR", "ROKAN HULU", "SIAK", "MERANTI"] },
-            { prov: "KEPULAUAN RIAU", kota: ["BATAM", "TANJUNGPINANG", "BINTAN", "KARIMUN", "NATUNA", "LINGGA", "KEPULAUAN ANAMBAS"] },
-            { prov: "JAMBI", kota: ["JAMBI", "SUNGAI PENUH", "BATANGHARI", "BUNGO", "KERINCI", "MERANGIN", "MUARO JAMBI", "SAROLANGUN", "TANJUNG JABUNG BARAT", "TANJUNG JABUNG TIMUR", "TEBO"] },
-            { prov: "SUMATERA SELATAN", kota: ["PALEMBANG", "LUBUKLINGGAU", "PRABUMULIH", "PAGAR ALAM", "BANYUASIN", "EMPAT LAWANG", "LAHAT", "MUARA ENIM", "MUSI BANYUASIN", "MUSI RAWAS", "Ogan Ilir", "OKU", "OKI"] },
-            { prov: "BANGKA BELITUNG", kota: ["PANGKALPINANG", "BANGKA", "BANGKA BARAT", "BANGKA SELATAN", "BANGKA TENGAH", "BELITUNG", "BELITUNG TIMUR"] },
-            { prov: "BENGKULU", kota: ["BENGKULU", "BENGKULU SELATAN", "BENGKULU TENGAH", "BENGKULU UTARA", "KAUR", "KEPAHIANG", "LEBONG", "MUKOMUKO", "REJANG LEBONG", "SELUMA"] },
-            { prov: "LAMPUNG", kota: ["BANDAR LAMPUNG", "METRO", "LAMPUNG BARAT", "LAMPUNG SELATAN", "LAMPUNG TENGAH", "LAMPUNG TIMUR", "LAMPUNG UTARA", "MESUJI", "PESAWARAN", "PESISIR BARAT", "PRINGSEWU", "TANGGAMUS", "TULANG BAWANG", "WAY KANAN"] },
-            
-            // JAWA & BALI
-            { prov: "DKI JAKARTA", kota: ["JAKARTA SELATAN", "JAKARTA PUSAT", "JAKARTA TIMUR", "JAKARTA BARAT", "JAKARTA UTARA", "KEPULAUAN SERIBU"] },
-            { prov: "BANTEN", kota: ["TANGERANG", "SERANG", "CILEGON", "TANGERANG SELATAN", "LEBAK", "PANDEGLANG", "KABUPATEN TANGERANG", "KABUPATEN SERANG"] },
-            { prov: "JAWA BARAT", kota: ["BANDUNG", "BOGOR", "BEKASI", "DEPOK", "CIREBON", "GARUT", "TASIKMALAYA", "SUKABUMI", "CIMAHI", "BANJAR", "CIANJUR", "CIAMIS", "INDRAMAYU", "KARAWANG", "KUNINGAN", "MAJALENGKA", "PANGANDARAN", "PURWAKARTA", "SUBANG", "SUMEDANG", "BANDUNG BARAT"] },
-            { prov: "JAWA TENGAH", kota: ["SEMARANG", "SURAKARTA", "MAGELANG", "TEGAL", "PEKALONGAN", "SALATIGA", "BANJARNEGARA", "BANYUMAS", "BATANG", "BLORA", "BOYOLALI", "BREBES", "CILACAP", "DEMAK", "GROBOGAN", "JEPARA", "KARANGANYAR", "KEBUMEN", "KENDAL", "KLATEN", "KUDUS", "PATI", "PEMALANG", "PURBALINGGA", "PURWOREJO", "REMBANG", "SRAGEN", "SUKOHARJO", "TEMANGGUNG", "WONOGIRI", "WONOSOBO"] },
-            { prov: "DI YOGYAKARTA", kota: ["YOGYAKARTA", "SLEMAN", "BANTUL", "GUNUNGKIDUL", "KULON PROGO"] },
-            { prov: "JAWA TIMUR", kota: ["SURABAYA", "MALANG", "MADIUN", "KEDIRI", "MOJOKERTO", "PASURUAN", "PROBOLINGGO", "BLITAR", "BATU", "SIDOARJO", "GRESIK", "LAMONGAN", "TUBAN", "BOJONEGORO", "NGAWI", "MAGETAN", "PONOROGO", "PACITAN", "TRENGGALEK", "TULUNGAGUNG", "JOMBANG", "NGANJUK", "LUMAJANG", "JEMBER", "BANYUWANGI", "SITUBONDO", "BONDOWOSO", "BANGKALAN", "SAMPANG", "PAMEKASAN", "SUMENEP"] },
-            { prov: "BALI", kota: ["DENPASAR", "BADUNG", "BANGLI", "BULELENG", "GIANYAR", "JEMBRANA", "KARANGASEM", "KLUNGKUNG", "TABANAN"] },
+            // JAWA & BALI (Fokus Utama - Bobot Sangat Tinggi)
+            { prov: "DKI JAKARTA", zipPrefix: "1", weight: 30, kota: ["JAKARTA SELATAN", "JAKARTA PUSAT", "JAKARTA TIMUR", "JAKARTA BARAT", "JAKARTA UTARA"] },
+            { prov: "JAWA BARAT", zipPrefix: "4", weight: 35, kota: ["BANDUNG", "BOGOR", "BEKASI", "DEPOK", "CIREBON", "GARUT", "TASIKMALAYA", "SUKABUMI", "CIMAHI", "KARAWANG", "SUBANG", "SUMEDANG"] },
+            { prov: "JAWA TENGAH", zipPrefix: "5", weight: 30, kota: ["SEMARANG", "SURAKARTA", "MAGELANG", "TEGAL", "PEKALONGAN", "BANYUMAS", "BOYOLALI", "CILACAP", "KUDUS", "PATI", "KLATEN"] },
+            { prov: "JAWA TIMUR", zipPrefix: "6", weight: 35, kota: ["SURABAYA", "MALANG", "MADIUN", "KEDIRI", "MOJOKERTO", "PASURUAN", "SIDOARJO", "GRESIK", "JEMBER", "BANYUWANGI", "BLITAR"] },
+            { prov: "BANTEN", zipPrefix: "1", weight: 15, kota: ["TANGERANG", "SERANG", "CILEGON", "TANGERANG SELATAN", "PANDEGLANG"] },
+            { prov: "DI YOGYAKARTA", zipPrefix: "5", weight: 10, kota: ["YOGYAKARTA", "SLEMAN", "BANTUL", "GUNUNGKIDUL"] },
+            { prov: "BALI", zipPrefix: "8", weight: 10, kota: ["DENPASAR", "BADUNG", "GIANYAR", "BULELENG", "TABANAN"] },
 
-            // NUSA TENGGARA
-            { prov: "NUSA TENGGARA BARAT", kota: ["MATARAM", "BIMA", "DOMPU", "LOMBOK BARAT", "LOMBOK TENGAH", "LOMBOK TIMUR", "LOMBOK UTARA", "SUMBAWA", "SUMBAWA BARAT"] },
-            { prov: "NUSA TENGGARA TIMUR", kota: ["KUPANG", "ALOR", "BELU", "ENDE", "FLORES TIMUR", "MANGGARAI", "MANGGARAI BARAT", "MANGGARAI TIMUR", "NAGEKEO", "NGADA", "ROTE NDAO", "SABU RAIJUA", "SIKKA", "SUMBA BARAT", "SUMBA TIMUR", "TIMOR TENGAH SELATAN", "TIMOR TENGAH UTARA"] },
+            // SUMATERA (Fokus Kedua - Bobot Sedang)
+            { prov: "SUMATERA UTARA", zipPrefix: "2", weight: 15, kota: ["MEDAN", "BINJAI", "PEMATANGSIANTAR", "DELI SERDANG", "ASAHAN"] },
+            { prov: "SUMATERA BARAT", zipPrefix: "2", weight: 10, kota: ["PADANG", "BUKITTINGGI", "PAYAKUMBUH", "PARIAMAN", "SOLOK"] },
+            { prov: "RIAU", zipPrefix: "2", weight: 8, kota: ["PEKANBARU", "DUMAI", "BENGKALIS", "KAMPAR"] },
+            { prov: "SUMATERA SELATAN", zipPrefix: "3", weight: 12, kota: ["PALEMBANG", "LUBUKLINGGAU", "PRABUMULIH", "BANYUASIN"] },
+            { prov: "LAMPUNG", zipPrefix: "3", weight: 10, kota: ["BANDAR LAMPUNG", "METRO", "LAMPUNG SELATAN", "PESAWARAN"] },
+            { prov: "NANGGROE ACEH DARUSSALAM", zipPrefix: "2", weight: 5, kota: ["BANDA ACEH", "LHOKSEUMAWE", "LANGSA", "ACEH BESAR"] },
+            { prov: "KEPULAUAN RIAU", zipPrefix: "2", weight: 5, kota: ["BATAM", "TANJUNGPINANG", "BINTAN"] },
+            { prov: "JAMBI", zipPrefix: "3", weight: 5, kota: ["JAMBI", "BATANGHARI", "BUNGO"] },
 
-            // KALIMANTAN
-            { prov: "KALIMANTAN BARAT", kota: ["PONTIANAK", "SINGKAWANG", "BENGKAYANG", "KAPUAS HULU", "KAYONG UTARA", "KETAPANG", "KUBU RAYA", "LANDAK", "MELAWI", "MEMPAWAH", "SAMBAS", "SANGGAU", "SEKADAU", "SINTANG"] },
-            { prov: "KALIMANTAN TENGAH", kota: ["PALANGKA RAYA", "BARITO SELATAN", "BARITO TIMUR", "BARITO UTARA", "GUNUNG MAS", "KAPUAS", "KATINGAN", "KOTAWARINGIN BARAT", "KOTAWARINGIN TIMUR", "LAMANDAU", "MURUNG RAYA", "PULANG PISAU", "SUKAMARA", "SERUYAN"] },
-            { prov: "KALIMANTAN SELATAN", kota: ["BANJARMASIN", "BANJARBARU", "BALANGAN", "BANJAR", "BARITO KUALA", "HULU SUNGAI SELATAN", "HULU SUNGAI TENGAH", "HULU SUNGAI UTARA", "KOTABARU", "TABALONG", "TANAH BUMBU", "TANAH LAUT", "TAPIN"] },
-            { prov: "KALIMANTAN TIMUR", kota: ["SAMARINDA", "BALIKPAPAN", "BONTANG", "BERAU", "KUTAI BARAT", "KUTAI KARTANEGARA", "KUTAI TIMUR", "MAHAKAM ULU", "PASER", "PENAJAM PASER UTARA"] },
-            { prov: "KALIMANTAN UTARA", kota: ["TARAKAN", "BULUNGAN", "MALINAU", "NUNUKAN", "TANA TIDUNG"] },
+            // KALIMANTAN & SULAWESI (Fokus Ketiga - Bobot Sedang-Kecil)
+            { prov: "KALIMANTAN TIMUR", zipPrefix: "7", weight: 8, kota: ["SAMARINDA", "BALIKPAPAN", "BONTANG", "KUTAI KARTANEGARA"] },
+            { prov: "KALIMANTAN BARAT", zipPrefix: "7", weight: 6, kota: ["PONTIANAK", "SINGKAWANG", "KAPUAS HULU", "SAMBAS"] },
+            { prov: "KALIMANTAN SELATAN", zipPrefix: "7", weight: 6, kota: ["BANJARMASIN", "BANJARBARU", "BANJAR", "TABALONG"] },
+            { prov: "KALIMANTAN TENGAH", zipPrefix: "7", weight: 4, kota: ["PALANGKA RAYA", "KOTABARU", "KAPUAS"] },
+            { prov: "SULAWESI SELATAN", zipPrefix: "9", weight: 12, kota: ["MAKASSAR", "PALOPO", "PAREPARE", "GOWA", "MAROS", "TANA TORAJA"] },
+            { prov: "SULAWESI UTARA", zipPrefix: "9", weight: 6, kota: ["MANADO", "BITUNG", "TOMOHON", "MINAHASA"] },
+            { prov: "SULAWESI TENGAH", zipPrefix: "9", weight: 4, kota: ["PALU", "DONGGALA", "MOROWALI"] },
 
-            // SULAWESI
-            { prov: "SULAWESI UTARA", kota: ["MANADO", "BITUNG", "KOTAMOBAGU", "TOMOHON", "BOLAANG MONGONDOW", "MINAHASA", "MINAHASA SELATAN", "MINAHASA UTARA", "KEPULAUAN SANGIHE", "KEPULAUAN TALAUD"] },
-            { prov: "GORONTALO", kota: ["GORONTALO", "BOALEMO", "BONE BOLANGO", "POHUWATO", "GORONTALO UTARA"] },
-            { prov: "SULAWESI TENGAH", kota: ["PALU", "BANGGAI", "DONGGALA", "MOROWALI", "PARIGI MOUTONG", "POSO", "SIGI", "TOJO UNA-UNA", "TOLI-TOLI"] },
-            { prov: "SULAWESI BARAT", kota: ["MAMUJU", "MAJENE", "MAMASA", "PASANGKAYU", "POLEWALI MANDAR", "MAMUJU TENGAH"] },
-            { prov: "SULAWESI SELATAN", kota: ["MAKASSAR", "PALOPO", "PAREPARE", "BANTAENG", "BARRU", "BONE", "BULUKUMBA", "ENREKANG", "GOWA", "JENEPONTO", "LUWU", "MAROS", "PANGKEP", "PINRANG", "SINJAI", "SOPPENG", "TAKALAR", "TANA TORAJA", "WAJO"] },
-            { prov: "SULAWESI TENGGARA", kota: ["KENDARI", "BAUBAU", "BOMBANA", "BUTON", "KOLAKA", "KONAWE", "MUNA", "WAKATOBI"] },
+            // NUSA TENGGARA (Bobot Kecil)
+            { prov: "NUSA TENGGARA BARAT", zipPrefix: "8", weight: 4, kota: ["MATARAM", "BIMA", "LOMBOK BARAT", "LOMBOK TENGAH"] },
+            { prov: "NUSA TENGGARA TIMUR", zipPrefix: "8", weight: 3, kota: ["KUPANG", "ENDE", "MANGGARAI", "SUMBA TIMUR"] },
 
-            // MALUKU & PAPUA
-            { prov: "MALUKU", kota: ["AMBON", "TUAL", "BURU", "KEPULAUAN ARU", "MALUKU TENGAH", "MALUKU TENGGARA", "SERAM BAGIAN BARAT", "SERAM BAGIAN TIMUR"] },
-            { prov: "MALUKU UTARA", kota: ["TERNATE", "TIDORE KEPULAUAN", "HALMAHERA BARAT", "HALMAHERA TENGAH", "HALMAHERA UTARA", "HALMAHERA SELATAN", "KEPULAUAN SULA", "PULAU MOROTAI"] },
-            { prov: "PAPUA", kota: ["JAYAPURA", "BIAK NUMFOR", "KEEROM", "MAMBERAMO RAYA", "SARMI", "SUPIORI", "WAROPEN"] },
-            { prov: "PAPUA BARAT", kota: ["MANOKWARI", "SORONG", "FAKFAK", "KAIMANA", "RAJA AMPAT", "TELUK BINTUNI", "TELUK WONDAMA"] },
-            { prov: "PAPUA SELATAN", kota: ["MERAUKE", "BOUVEN DIGOEL", "MAPPI", "ASMAT"] },
-            { prov: "PAPUA TENGAH", kota: ["NABIRE", "MIMIKA", "PANIAI", "PUNCAK JAYA"] },
-            { prov: "PAPUA PEGUNUNGAN", kota: ["JAYAWIJAYA", "YAHUKIMO", "TOLIKARA", "LANY JAYA"] }
+            // MALUKU & PAPUA (Ditekan Frekuensinya - Bobot Sangat Kecil)
+            { prov: "MALUKU", zipPrefix: "9", weight: 1, kota: ["AMBON", "TUAL", "MALUKU TENGAH"] },
+            { prov: "MALUKU UTARA", zipPrefix: "9", weight: 1, kota: ["TERNATE", "TIDORE", "HALMAHERA UTARA"] },
+            { prov: "PAPUA", zipPrefix: "9", weight: 1, kota: ["JAYAPURA", "BIAK NUMFOR", "MAMBERAMO RAYA"] },
+            { prov: "PAPUA BARAT", zipPrefix: "9", weight: 1, kota: ["MANOKWARI", "SORONG", "FAKFAK"] }
         ];
 
-        const pilihDaerah = daerah[Math.floor(Math.random() * daerah.length)];
+        // Logika Weighted Random untuk memilih daerah
+        let totalWeight = daerah.reduce((sum, item) => sum + item.weight, 0);
+        let randomNum = Math.random() * totalWeight;
+        let pilihDaerah = daerah[0];
+        
+        for (let i = 0; i < daerah.length; i++) {
+            if (randomNum < daerah[i].weight) {
+                pilihDaerah = daerah[i];
+                break;
+            }
+            randomNum -= daerah[i].weight;
+        }
+
         const provinsi = pilihDaerah.prov;
         const kota = pilihDaerah.kota[Math.floor(Math.random() * pilihDaerah.kota.length)];
+        
+        // Generate 5 Digit Kode Pos berdasar Prefix Regional
+        const randomZipSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+        const kodePos = `${pilihDaerah.zipPrefix}${randomZipSuffix}`;
 
         // ==========================================
-        // 4. ACAK NAMA JALAN (DIPERBANYAK & BERAGAM)
+        // 4. ACAK NAMA JALAN
         // ==========================================
         const jalanList = [
-            // Nama Pahlawan / Tokoh
             "JL. JENDERAL SUDIRMAN", "JL. MH THAMRIN", "JL. GATOT SUBROTO", "JL. AHMAD YANI", "JL. MERDEKA", 
             "JL. DIPONEGORO", "JL. PAHLAWAN", "JL. VETERAN", "JL. PEMUDA", "JL. KI HAJAR DEWANTARA", 
             "JL. KARTINI", "JL. HASANUDDIN", "JL. TEUKU UMAR", "JL. IMAM BONJOL", "JL. GAJAH MADA", 
-            "JL. HAYAM WURUK", "JL. PATTIMURA", "JL. CUT NYAK DIEN", "JL. RADEN SALEH", "JL. HOS COKROAMINOTO",
-            "JL. SLAMET RIYADI", "JL. WR SUPRATMAN", "JL. MT HARYONO", "JL. DI PANJAITAN", "JL. LETJEN SUPRAPTO",
-            "JL. PIERRE TENDEAN", "JL. S PARMAN", "JL. SUTOMO", "JL. WAHID HASYIM", "JL. SULTAN AGUNG",
-            // Nama Bunga / Pohon
-            "JL. MELATI", "JL. MAWAR", "JL. ANGGREK", "JL. KENANGA", "JL. CEMARA", "JL. TERATAI", "JL. BOUGENVILLE",
-            "JL. KAMBOJA", "JL. DAHLIA", "JL. FLAMBOYAN", "JL. CEMPAKA", "JL. TULIP", "JL. ASOKA", "JL. SAKURA", 
-            "JL. ASTER", "JL. MATAHARI", "JL. TANJUNG", "JL. BERINGIN", "JL. PINUS", "JL. MAHONI", "JL. JATI",
-            // Nama Burung / Hewan
-            "JL. KELINCI", "JL. GARUDA", "JL. CENDRAWASIH", "JL. RAJAWALI", "JL. MERPATI", "JL. KUTILANG", 
-            "JL. NURI", "JL. MERAK", "JL. KAKAKTUA", "JL. MURAI", "JL. KENARI", "JL. JALAK", "JL. PERKUTUT",
-            // Nama Daerah / Buah / Umum
+            "JL. HAYAM WURUK", "JL. PATTIMURA", "JL. SLAMET RIYADI", "JL. WR SUPRATMAN", "JL. MT HARYONO",
+            "JL. MELATI", "JL. MAWAR", "JL. ANGGREK", "JL. CEMARA", "JL. TERATAI", "JL. BOUGENVILLE",
+            "JL. KAMBOJA", "JL. DAHLIA", "JL. FLAMBOYAN", "JL. BERINGIN", "JL. PINUS", "JL. MAHONI", 
+            "JL. GARUDA", "JL. CENDRAWASIH", "JL. RAJAWALI", "JL. MERPATI", "JL. KUTILANG", "JL. NURI",
             "JL. NUSA INDAH", "JL. RAYA PASAR", "JL. KEMANGGISAN", "JL. TAMAN SISWA", "JL. KEBON JERUK", 
-            "JL. MANGGA DUA", "JL. DUKUH", "JL. RAMBUTAN", "JL. DURIAN", "JL. MANGGIS", "JL. CEMPEDAK",
-            "JL. RAYA UTAMA", "JL. LINTAS TIMUR", "JL. LINGKAR SELATAN", "JL. PONDOK INDAH", "JL. CITRA RAYA",
-            "JL. PRAMUKA", "JL. BINA MARGA", "JL. KARYA BAKTI", "JL. GOTONG ROYONG", "JL. SUMBER MAKMUR",
-            "JL. HARAPAN INDAH", "JL. MAJU JAYA", "JL. KUSUMA BANGSA", "JL. RAYA WANGI", "JL. PANDANARAN",
-            "JL. BRAGA", "JL. ASIA AFRIKA", "JL. MALIOBORO", "JL. DARMO", "JL. TUNJUNGAN", "JL. MARGOREJO"
+            "JL. MANGGA DUA", "JL. PONDOK INDAH", "JL. CITRA RAYA", "JL. PRAMUKA", "JL. GOTONG ROYONG",
+            "JL. HARAPAN INDAH", "JL. ASIA AFRIKA", "JL. MALIOBORO", "JL. DARMO", "JL. TUNJUNGAN"
         ];
         const namaJalan = jalanList[Math.floor(Math.random() * jalanList.length)];
         const awalanGang = ["", "", "", "GANG 1, ", "GANG 2, ", "GANG 3, ", "GANG MAWAR, ", "GANG BUNTU, ", "GANG DAMAI, "];
         const gangAcak = awalanGang[Math.floor(Math.random() * awalanGang.length)];
-        const nomorRumah = Math.floor(Math.random() * 250) + 1; // Acak nomor rumah 1 - 250
+        const nomorRumah = Math.floor(Math.random() * 250) + 1;
         
         const jalan = `${gangAcak}${namaJalan} NO. ${nomorRumah}`;
         
@@ -144,15 +156,14 @@ export async function generateName() {
             "Sebelah Toko Bangunan", "Depan Toko Kelontong", "Samping Konter HP", 
             "Dekat Puskesmas", "Samping Apotek", "Belakang RS", "Samping Bidan Desa",
             "Depan Lapangan Bola", "Sebelah Bengkel Motor", "Depan Pos Kamling",
-            "Dekat Pertigaan Lampu Merah", "Pas Tikungan", "Sebelah Tukang Cukur",
-            "Samping Lapangan Voli", "Depan Tukang Bakso", "Rumah Tingkat Dua", "Dekat Jembatan"
+            "Dekat Pertigaan Lampu Merah", "Pas Tikungan", "Sebelah Tukang Cukur"
         ];
         const patokanAcak = daftarPatokan[Math.floor(Math.random() * daftarPatokan.length)].toUpperCase();
         
         // ==========================================
-        // 6. GABUNGKAN SEMUA
+        // 6. GABUNGKAN SEMUA (Ditambah Kode Pos)
         // ==========================================
-        const hasilLengkap = `${nama}, ${noHp}, ${provinsi}, ${kota}, ${jalan} (${patokanAcak})`;
+        const hasilLengkap = `${nama}, ${noHp}, ${provinsi}, ${kota}, ${kodePos}, ${jalan} (${patokanAcak})`;
         
         const outputEl = document.getElementById('genNameOutput');
         if (outputEl) outputEl.value = hasilLengkap; 
@@ -196,5 +207,4 @@ export async function generateName() {
         console.error("Error Detail:", err);
         alert("Gagal mengacak data. Error: " + err.message);
     }
-                                         }
-        
+}
