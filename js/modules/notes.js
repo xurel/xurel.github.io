@@ -5,7 +5,7 @@ let currentNoteTab = 'public'; let selectedNoteKey = null; let currentNoteRaw = 
 let userAdmin = null;
 
 // ==========================================
-// FITUR STATISTIK HARIAN & TOTAL (FIREBASE)
+// FITUR STATISTIK HARIAN & TOTAL
 // ==========================================
 let currentStatsRef = null;
 let statsData = { total: 0, saved: 0, deleted: 0 }; 
@@ -31,11 +31,11 @@ function incrementStat(type) {
 }
 
 async function resetStatsManual() {
-    const confirm = await showModal("Reset Statistik", "Reset jumlah simpan & hapus hari ini ke 0?", "danger");
+    const confirm = await showModal("Reset Statistik", "Hapus data simpan & hapus hari ini?", "danger");
     if (confirm) {
         try {
             await db.ref(getStatsPath()).update({ saved: 0, deleted: 0 });
-        } catch (e) { console.error("Reset failed", e); }
+        } catch (e) {}
     }
 }
 
@@ -55,23 +55,37 @@ function syncStats() {
 
 function updateStatsUI() {
     try {
-        let statsContainer = document.getElementById('note-stats-bubble');
+        let statsContainer = document.getElementById('note-stats-unified');
+        const subnav = document.querySelector('.notes-subnav');
         
+        if (!subnav) return;
+
         if (!statsContainer) {
             statsContainer = document.createElement('div');
-            statsContainer.id = 'note-stats-bubble';
-            // Styling Bubble: Tinggi 30px, BG #e4e6eb, Font 13px
+            statsContainer.id = 'note-stats-unified';
+            // Styling agar menyatu dengan subnav (background & border-radius sama)
             statsContainer.style.cssText = `
-                background: #e4e6eb; color: #4b4d50; height: 30px;
-                padding: 0 5px 0 15px; border-radius: 20px; font-size: 13px; 
-                font-weight: 600; display: flex; align-items: center; gap: 10px;
-                border: 1px solid #ccd0d5; box-sizing: border-box;
+                display: flex; align-items: center; gap: 12px;
+                margin-left: 15px; padding-left: 15px;
+                border-left: 1px solid #ccd0d5; height: 20px;
+                color: #65676B; font-size: 13px; font-weight: 600;
             `;
+            subnav.appendChild(statsContainer);
+            // Menyesuaikan lebar subnav agar menampung statistik
+            subnav.style.width = 'auto';
+            subnav.style.maxWidth = 'none';
+            subnav.style.display = 'flex';
+            subnav.style.alignItems = 'center';
         }
         
         statsContainer.innerHTML = `
             <span>📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}</span>
-            <div id="btn-reset-stat" style="width: 22px; height: 22px; background: #bcc0c4; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;" title="Reset Harian">
+            <div id="btn-reset-stat" style="
+                width: 22px; height: 22px; background: #bcc0c4; 
+                border-radius: 50%; display: flex; align-items: center; 
+                justify-content: center; cursor: pointer; transition: 0.2s;
+                margin-left: 5px;
+            " title="Reset Harian">
                 <i class="fas fa-sync-alt" style="font-size: 10px; color: white;"></i>
             </div>
         `;
@@ -81,19 +95,6 @@ function updateStatsUI() {
         btnReset.onmouseover = () => btnReset.style.background = '#4b4d50';
         btnReset.onmouseout = () => btnReset.style.background = '#bcc0c4';
 
-        const tabBtn = document.getElementById('tab-priv');
-        if (tabBtn && tabBtn.parentElement) {
-            const subnav = tabBtn.parentElement; // .notes-subnav
-            if (!subnav.parentElement.classList.contains('notes-header-row')) {
-                const row = document.createElement('div');
-                row.className = 'notes-header-row';
-                row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%;';
-                subnav.style.marginBottom = '0';
-                subnav.parentNode.insertBefore(row, subnav);
-                row.appendChild(subnav);
-                row.appendChild(statsContainer);
-            }
-        }
     } catch (error) {}
 }
 
@@ -190,7 +191,7 @@ export async function saveNote() {
         });
 
         if (isDuplicate) {
-            const confirm = await showModal("Teks Duplikat", "Catatan dengan teks yang sama sudah ada. Tetap simpan?", "confirm");
+            const confirm = await showModal("Teks Duplikat", "Catatan dengan teks yang sama persis sudah ada. Tetap simpan?", "confirm");
             if (!confirm) return;
         }
 
