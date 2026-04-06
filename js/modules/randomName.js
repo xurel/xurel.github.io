@@ -4,8 +4,9 @@
 const STORAGE_BASE_EMAIL = 'xurel_base_email';
 const STORAGE_EMAIL_INDEX = 'xurel_email_index';
 
-// Fungsi bantuan untuk menyalin teks tanpa menampilkannya
+// Fungsi senyap untuk menyalin teks
 async function copyToClipboard(text) {
+    if (!text) return;
     try {
         if (navigator.clipboard && window.isSecureContext) {
             await navigator.clipboard.writeText(text);
@@ -16,7 +17,7 @@ async function copyToClipboard(text) {
         const textArea = document.createElement("textarea");
         textArea.value = text;
         textArea.style.position = "fixed";
-        textArea.style.left = "-9999px"; // Sembunyikan textarea
+        textArea.style.left = "-9999px";
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
@@ -25,16 +26,20 @@ async function copyToClipboard(text) {
     }
 }
 
-// Fungsi format iterasi email
+// Fungsi format iterasi email (aku@upil.com -> aku1@upil.com)
 function formatEmail(baseEmail, index) {
     if (!baseEmail) return "";
     if (index === 0) return baseEmail;
+    
     const parts = baseEmail.split('@');
-    return `${parts[0]}${index}@${parts[1]}`;
+    if (parts.length === 2) {
+        return `${parts[0]}${index}@${parts[1]}`;
+    }
+    return `${baseEmail}${index}`; // Fallback jika tidak ada karakter @
 }
 
 // ==========================================
-// FUNGSI UTAMA ACAK DATA
+// FUNGSI UTAMA ACAK DATA PROFIL LENGKAP
 // ==========================================
 export async function generateName() {
     try {
@@ -45,7 +50,6 @@ export async function generateName() {
         }
         fakerObj.locale = "id_ID";
 
-        // 1. SISTEM ANTI-DUPLIKAT HARIAN
         const hariIni = new Date().toDateString(); 
         let tanggalTersimpan = localStorage.getItem('xurel_used_date');
         let namaTerpakai = [];
@@ -68,19 +72,17 @@ export async function generateName() {
         namaTerpakai.push(nama);
         localStorage.setItem('xurel_used_names', JSON.stringify(namaTerpakai));
 
-        // 2. ACAK NOMOR HP (REALISTIS INDONESIA)
         const prefixProvider = [
-            '0811', '0812', '0813', '0821', '0822', '0852', // Telkomsel
-            '0815', '0816', '0857', '0858',                 // Indosat
-            '0817', '0818', '0819', '0859', '0877', '0878', // XL
-            '0895', '0896', '0897', '0898',                 // Tri
-            '0881', '0882', '0887', '0888'                  // Smartfren
+            '0811', '0812', '0813', '0821', '0822', '0852', 
+            '0815', '0816', '0857', '0858',                 
+            '0817', '0818', '0819', '0859', '0877', '0878', 
+            '0895', '0896', '0897', '0898',                 
+            '0881', '0882', '0887', '0888'                  
         ];
         const prefix = prefixProvider[Math.floor(Math.random() * prefixProvider.length)];
         const sisaDigit = Math.floor(Math.random() * 100000000).toString().padStart(8, '0');
         const noHp = prefix + sisaDigit;
         
-        // 3. ACAK PROVINSI, KOTA & KODE POS (WEIGHTED)
         const daerah = [
             { prov: "DKI JAKARTA", zip: "1", weight: 30, kota: ["JAKARTA SELATAN", "JAKARTA PUSAT", "JAKARTA BARAT", "JAKARTA TIMUR"] },
             { prov: "JAWA BARAT", zip: "4", weight: 35, kota: ["BANDUNG", "BOGOR", "BEKASI", "DEPOK", "CIREBON", "GARUT"] },
@@ -88,8 +90,7 @@ export async function generateName() {
             { prov: "JAWA TIMUR", zip: "6", weight: 35, kota: ["SURABAYA", "MALANG", "SIDOARJO", "GRESIK", "JEMBER"] },
             { prov: "BALI", zip: "8", weight: 15, kota: ["DENPASAR", "BADUNG", "GIANYAR"] },
             { prov: "SUMATERA UTARA", zip: "2", weight: 15, kota: ["MEDAN", "BINJAI", "DELI SERDANG"] },
-            { prov: "SULAWESI SELATAN", zip: "9", weight: 12, kota: ["MAKASSAR", "GOWA", "MAROS"] },
-            { prov: "PAPUA", zip: "9", weight: 1, kota: ["JAYAPURA", "SORONG"] } // Bobot kecil
+            { prov: "SULAWESI SELATAN", zip: "9", weight: 12, kota: ["MAKASSAR", "GOWA", "MAROS"] }
         ];
 
         let totalWeight = daerah.reduce((sum, item) => sum + item.weight, 0);
@@ -104,7 +105,6 @@ export async function generateName() {
         const kota = pilihDaerah.kota[Math.floor(Math.random() * pilihDaerah.kota.length)];
         const kodePos = `${pilihDaerah.zip}${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
 
-        // 4. ACAK JALAN DAN PATOKAN
         const jalanList = ["JL. JENDERAL SUDIRMAN", "JL. GATOT SUBROTO", "JL. AHMAD YANI", "JL. MERDEKA", "JL. DIPONEGORO", "JL. PAHLAWAN", "JL. MELATI", "JL. ANGGREK", "JL. NUSA INDAH"];
         const namaJalan = jalanList[Math.floor(Math.random() * jalanList.length)];
         const nomorRumah = Math.floor(Math.random() * 200) + 1;
@@ -113,38 +113,10 @@ export async function generateName() {
         const patokanList = ["Samping Masjid", "Depan Indomaret", "Sebelah SD", "Belakang Pasar", "Samping Apotek", "Pas Tikungan", "Rumah Pagar Hitam"];
         const patokanAcak = patokanList[Math.floor(Math.random() * patokanList.length)].toUpperCase();
 
-        // ========================================
-        // EKSEKUSI DATA (DATA DISALIN, EMAIL TAMPIL)
-        // ========================================
         const hasilLengkap = `${nama}, ${noHp}, ${provinsi}, ${kota}, ${kodePos}, ${jalan} (${patokanAcak})`;
         
-        // Buat Email Base
-        const baseEmail = `${fakerObj.internet.userName().toLowerCase().replace(/[^a-z0-9]/g, '')}${Math.floor(Math.random() * 99)}@gmail.com`;
-        localStorage.setItem(STORAGE_BASE_EMAIL, baseEmail);
-        localStorage.setItem(STORAGE_EMAIL_INDEX, "0");
-
-        // Set email ke dalam kolom Input
-        const outputEl = document.getElementById('genNameOutput');
-        if (outputEl) outputEl.value = formatEmail(baseEmail, 0);
-
-        // Salin DATA LENGKAP ke Clipboard
+        // Salin DATA LENGKAP secara senyap (tanpa animasi)
         await copyToClipboard(hasilLengkap);
-
-        // Feedback Visual Tombol Acak
-        const btn = document.getElementById('btn-gen'); 
-        if (btn) {
-            const originalText = btn.innerHTML;
-            btn.innerHTML = '<i class="fa-solid fa-check"></i> Disalin!'; 
-            btn.style.background = '#e6f4ea';
-            btn.style.color = '#28a745';
-            btn.style.borderColor = '#28a745';
-            setTimeout(() => { 
-                btn.innerHTML = originalText; 
-                btn.style.background = 'white'; 
-                btn.style.color = 'var(--fb-text)';
-                btn.style.borderColor = 'var(--fb-border)';
-            }, 1000);
-        }
 
     } catch (err) {
         console.error("Error Detail:", err);
@@ -152,7 +124,7 @@ export async function generateName() {
 }
 
 // ==========================================
-// EVENT LISTENERS: TOMBOL NEXT & PREV (KHUSUS EMAIL)
+// EVENT LISTENERS: EMAIL INPUT, NEXT & PREV
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     const btnPrev = document.getElementById('btn-prev');
@@ -166,7 +138,14 @@ document.addEventListener('DOMContentLoaded', () => {
         outputEl.value = formatEmail(savedBase, parseInt(savedIndex || 0));
     }
 
-    // Fungsi klik NEXT
+    // Tangkap ketikan manual user untuk mengatur email dasar baru
+    outputEl?.addEventListener('input', (e) => {
+        const newVal = e.target.value.trim();
+        localStorage.setItem(STORAGE_BASE_EMAIL, newVal);
+        localStorage.setItem(STORAGE_EMAIL_INDEX, "0"); // Reset hitungan ke 0
+    });
+
+    // Fungsi klik NEXT (Tanpa Animasi)
     btnNext?.addEventListener('click', async () => {
         let base = localStorage.getItem(STORAGE_BASE_EMAIL);
         let index = parseInt(localStorage.getItem(STORAGE_EMAIL_INDEX) || 0);
@@ -177,15 +156,10 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const newEmail = formatEmail(base, index);
         if (outputEl) outputEl.value = newEmail;
-        await copyToClipboard(newEmail); // Salin email ke clipboard
-
-        // Efek Flash
-        const originHtml = btnNext.innerHTML;
-        btnNext.innerHTML = '<i class="fa-solid fa-check"></i>';
-        setTimeout(() => btnNext.innerHTML = originHtml, 500);
+        await copyToClipboard(newEmail); // Salin email ke clipboard secara senyap
     });
 
-    // Fungsi klik PREV
+    // Fungsi klik PREV (Tanpa Animasi)
     btnPrev?.addEventListener('click', async () => {
         let base = localStorage.getItem(STORAGE_BASE_EMAIL);
         let index = parseInt(localStorage.getItem(STORAGE_EMAIL_INDEX) || 0);
@@ -196,11 +170,6 @@ document.addEventListener('DOMContentLoaded', () => {
         
         const newEmail = formatEmail(base, index);
         if (outputEl) outputEl.value = newEmail;
-        await copyToClipboard(newEmail); // Salin email ke clipboard
-
-        // Efek Flash
-        const originHtml = btnPrev.innerHTML;
-        btnPrev.innerHTML = '<i class="fa-solid fa-check"></i>';
-        setTimeout(() => btnPrev.innerHTML = originHtml, 500);
+        await copyToClipboard(newEmail); // Salin email ke clipboard secara senyap
     });
 });
