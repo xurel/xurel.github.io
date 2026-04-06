@@ -6,7 +6,8 @@ import { showModal } from './ui.js';
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
-    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" }
+    "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" },
+    "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" } // <-- URL OTPCEPAT ANDA
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -26,7 +27,21 @@ window.addEventListener('appSwitched', (e) => { if(e.detail === 'sms' && !smsIni
 function formatPrice(price) {
     if (activeProviderKey === "herosms") return `${price}`;
     if (activeProviderKey === "smsbower") return `$ ${price}`;
-    return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`;
+    return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; // OtpCepat dan SMSCode pakai format ini
+}
+
+// Helper untuk memunculkan Badge Provider atau Ranking
+function getOperatorBadge(provider, opCode, rank) {
+    if ((provider === "herosms" || provider === "otpcepat") && opCode && opCode !== "any") {
+        const opMap = { "telkomsel": "TL", "indosat": "ST", "axis": "XS", "three": "TR", "xl": "XL", "smartfren": "SM" };
+        let initial = opMap[opCode.toLowerCase()] || opCode.substring(0, 2).toUpperCase();
+        return `<span style="font-size:11px; font-family:sans-serif; font-weight:900; color:#fff; margin-left:8px; background:var(--fb-blue); padding:2px 6px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${initial}</span>`;
+    } else if (provider === "smsbower" && rank) {
+        if (rank === "G") return `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #d35400;">G</span>`;
+        if (rank === "S") return `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #7f8c8d;">S</span>`;
+        if (rank === "B") return `<span style="background: linear-gradient(135deg, #e67e22, #d35400); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #a04000;">B</span>`;
+    }
+    return "";
 }
 
 async function initSms() {
@@ -145,15 +160,7 @@ async function loadSmsPrices() {
     if (isSuccess && json.data && json.data.length > 0) {
         box.innerHTML = json.data.map(i => {
             let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-            
-            let rankBadge = '';
-            if (activeProviderKey === "smsbower") {
-                let r = i.rank || 'S'; 
-                if (r === "G") rankBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px; border:1px solid #d35400;">G</span>`;
-                else if (r === "S") rankBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px; border:1px solid #7f8c8d;">S</span>`;
-                else if (r === "B") rankBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); color: white; padding: 2px 6px; border-radius: 4px; font-weight: 900; font-size: 10px; margin-left:6px; border:1px solid #a04000;">B</span>`;
-            }
-
+            let rankBadge = getOperatorBadge(activeProviderKey, i.operator, i.rank);
             let idLabel = (activeProviderKey === "smsbower" && i.operator !== "any") ? ` <span style="color:#aaa;">(ID: ${i.operator})</span>` : "";
             let extra = activeProviderKey === "smsbower" ? i.operator : (i.available || "~");
             let rankParam = i.rank || "S";
@@ -177,9 +184,10 @@ async function loadSmsPrices() {
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
     
-    let borderColor = "#95a5a6"; 
-    if (activeProviderKey === "herosms") borderColor = "#8e44ad";
-    if (activeProviderKey === "smsbower") borderColor = "#27ae60";
+    let borderColor = "#95a5a6"; // default code (abu-abu)
+    if (activeProviderKey === "herosms") borderColor = "#8e44ad"; // ungu
+    if (activeProviderKey === "smsbower") borderColor = "#27ae60"; // hijau
+    if (activeProviderKey === "otpcepat") borderColor = "#e74c3c"; // merah (Sesuai permintaan Anda)
     
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
@@ -211,18 +219,35 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
 }
 
 export async function buySms(pid, price, name, extra = "~", rank = "S") {
-    if (activeProviderKey === "herosms") {
+    // HERO SMS DAN OTP CEPAT MENAMPILKAN POP-UP PROVIDER
+    if (activeProviderKey === "herosms" || activeProviderKey === "otpcepat") {
         const box = document.getElementById('sms-prices');
         box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
         
-        const ops = ["indosat", "telkomsel", "axis", "three"];
-        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${formatPrice(price)}</div>`;
+        const ops = [
+            { id: "any", label: "BEBAS (Acak Provider)" },
+            { id: "telkomsel", label: "TELKOMSEL" },
+            { id: "indosat", label: "INDOSAT" },
+            { id: "axis", label: "AXIS" },
+            { id: "three", label: "THREE" },
+            { id: "xl", label: "XL" },
+            { id: "smartfren", label: "SMARTFREN" }
+        ];
+
+        let sendPrice = price;
+        let displayPrice = formatPrice(price);
+
+        // Kunci harga khusus untuk OtpCepat menjadi 1100
+        if (activeProviderKey === "otpcepat") {
+            sendPrice = 1100;
+            displayPrice = formatPrice(1100);
+        }
+
+        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${displayPrice}</div>`;
 
         ops.forEach(op => {
-            let opName = op.toUpperCase();
-            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${price}, '${name}', '${op}', '')">
-                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${opName}</div>
-                <div style="font-size:12px; color:var(--fb-muted); margin-right:10px;">~ stok</div>
+            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${sendPrice}, '${name}', '${op.id}', '')">
+                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${op.label}</div>
                 <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
             </div>`;
         });
@@ -239,15 +264,15 @@ window.buySms = buySms;
 export async function executeBuySms(pid, price, name, operator, rank = "") {
     const pText = formatPrice(price);
     let opText = "";
-    if (activeProviderKey === "herosms" && operator !== "any") opText = ` (Prov: ${operator.toUpperCase()})`;
+    if ((activeProviderKey === "herosms" || activeProviderKey === "otpcepat") && operator !== "any") opText = ` (Prov: ${operator.toUpperCase()})`;
     else if (activeProviderKey === "smsbower" && operator !== "any") opText = ` (ID: ${operator})`;
 
     if(!await showModal("Pesan Baru", `Beli nomor untuk ${name}${opText} seharga ${pText}?`, "confirm")) {
-        if(activeProviderKey === "herosms") refreshSms();
+        if(activeProviderKey === "herosms" || activeProviderKey === "otpcepat") refreshSms();
         return;
     }
 
-    const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower") ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
+    const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
     const j = await apiCall('/create-order', 'POST', payload);
     const isSuccess = j.success === true || j.status === "success";
 
@@ -263,19 +288,11 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         if (operator) localStorage.setItem(`op_${activeProviderKey}_${o.id}`, operator);
         if (rank) localStorage.setItem(`rank_${activeProviderKey}_${o.id}`, rank);
 
-        let extraBadge = "";
-        if (activeProviderKey === "herosms" && operator && operator !== "any") {
-            let initial = operator.charAt(0).toUpperCase();
-            extraBadge = `<span style="font-size:12px; font-family:sans-serif; font-weight:900; color:#fff; margin-left:8px; background:var(--fb-blue); padding:1px 6px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${initial}</span>`;
-        } else if (activeProviderKey === "smsbower" && rank) {
-            if (rank === "G") extraBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #d35400;">G</span>`;
-            else if (rank === "S") extraBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #7f8c8d;">S</span>`;
-            else if (rank === "B") extraBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #a04000;">B</span>`;
-        }
-        
+        const extraBadge = getOperatorBadge(activeProviderKey, operator, rank);
         const priceDisplay = formatPrice(price) + extraBadge;
-        let cancelState = activeProviderKey === "smsbower" ? '' : 'disabled';
-        let replaceState = 'disabled'; // Awal order pasti disabled
+        
+        let cancelState = (activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") ? '' : 'disabled';
+        let replaceState = 'disabled'; 
 
         const container = document.getElementById('sms-active-orders');
         const cardHTML = createCardHTML(o.id, newPhone, priceDisplay, 'disabled', cancelState, replaceState, `<div class="loader-bars"><span></span><span></span><span></span></div>`);
@@ -285,14 +302,11 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 150);
     } else {
         showModal("Gagal", j.error?.message || j.message || j.error || "Gagal memesan stok.", "alert");
-        if(activeProviderKey === "herosms") refreshSms();
+        if(activeProviderKey === "herosms" || activeProviderKey === "otpcepat") refreshSms();
     }
 }
 window.executeBuySms = executeBuySms;
 
-// ==========================================
-// 4. LOGIKA SERVER SYNC (ANTI HILANG)
-// ==========================================
 async function pollSms() {
     let localIds = [];
     for(let i=0; i<localStorage.length; i++) {
@@ -372,27 +386,16 @@ function renderSmsOrders(orders) {
             if (remaining <= 1080) passed2Mins = true; 
         }
 
-        // Terapkan Badge (Inisial Hero / Rank Bower) dari Memory
         const savedOp = localStorage.getItem(`op_${activeProviderKey}_${o.id}`) || "";
         const savedRank = localStorage.getItem(`rank_${activeProviderKey}_${o.id}`) || "";
-        let extraBadge = "";
-        
-        if (activeProviderKey === "herosms" && savedOp && savedOp !== "any") {
-            let initial = savedOp.charAt(0).toUpperCase();
-            extraBadge = `<span style="font-size:12px; font-family:sans-serif; font-weight:900; color:#fff; margin-left:8px; background:var(--fb-blue); padding:1px 6px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${initial}</span>`;
-        } else if (activeProviderKey === "smsbower" && savedRank) {
-            if (savedRank === "G") extraBadge = `<span style="background: linear-gradient(135deg, #f1c40f, #f39c12); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #d35400;">G</span>`;
-            else if (savedRank === "S") extraBadge = `<span style="background: linear-gradient(135deg, #bdc3c7, #95a5a6); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #7f8c8d;">S</span>`;
-            else if (savedRank === "B") extraBadge = `<span style="background: linear-gradient(135deg, #e67e22, #d35400); font-family:sans-serif; color: white; padding: 1px 6px; border-radius: 4px; font-weight: 900; font-size: 11px; margin-left:8px; border:1px solid #a04000;">B</span>`;
-        }
+        const extraBadge = getOperatorBadge(activeProviderKey, savedOp, savedRank);
 
         const priceDisplay = (serverPrice ? formatPrice(serverPrice) : '...') + extraBadge;
         const resendState = o.otp_code ? '' : 'disabled';
         const isDone = !!o.otp_code;
         let otpDisplay = o.otp_code ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp_code}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
         
-        // Logika Tombol Sesuai Permintaan
-        const cancelState = (passed2Mins || activeProviderKey === "smsbower") && !o.otp_code ? '' : 'disabled';
+        const cancelState = (passed2Mins || activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") && !o.otp_code ? '' : 'disabled';
         const replaceState = (passed2Mins && activeProviderKey !== "smsbower") && !o.otp_code ? '' : 'disabled';
 
         const cardId = `order-${activeProviderKey}-${o.id}`;
@@ -424,7 +427,7 @@ function renderSmsOrders(orders) {
                 if(btnReplace) btnReplace.disabled = true;
             } else {
                 const btnCancel = existingCard.querySelector('.btn-cancel');
-                if(btnCancel && btnCancel.disabled && (passed2Mins || activeProviderKey === "smsbower")) btnCancel.disabled = false;
+                if(btnCancel && btnCancel.disabled && (passed2Mins || activeProviderKey === "smsbower" || activeProviderKey === "otpcepat")) btnCancel.disabled = false;
                 
                 const btnReplace = existingCard.querySelector('.btn-replace');
                 if(btnReplace && btnReplace.disabled && (passed2Mins && activeProviderKey !== "smsbower")) btnReplace.disabled = false;
@@ -459,7 +462,7 @@ function updateSmsTimers() {
             el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
             el.style.color = diff < 600 ? "var(--fb-red)" : "var(--fb-blue)"; 
             
-            if (diff <= 1080 || activeProviderKey === "smsbower") { 
+            if (diff <= 1080 || activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") { 
                 const existingCard = document.getElementById(`order-${activeProviderKey}-${id}`); 
                 if(existingCard && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) { 
                     const btnCancel = existingCard.querySelector('.btn-cancel'); 
@@ -552,7 +555,7 @@ export async function actSms(action, id) {
 
         if (action === 'replace' && pid) {
             delete orderStates[id]; 
-            const payload = activeProviderKey === "herosms" ? { product_id: String(pid), price: price, operator: oldOp } : { product_id: parseInt(pid) };
+            const payload = (activeProviderKey === "herosms" || activeProviderKey === "otpcepat") ? { product_id: String(pid), price: price, operator: oldOp } : { product_id: parseInt(pid) };
             const n = await apiCall('/create-order', 'POST', payload);
             const nSuccess = n.success === true || n.status === "success";
             
