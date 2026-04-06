@@ -5,13 +5,13 @@ let currentNoteTab = 'public'; let selectedNoteKey = null; let currentNoteRaw = 
 let userAdmin = null;
 
 // ==========================================
-// FITUR STATISTIK HARIAN (FIREBASE REALTIME)
+// FITUR STATISTIK HARIAN & TOTAL
 // ==========================================
 let currentStatsRef = null;
+let statsData = { total: 0, saved: 0, deleted: 0 }; // Menyimpan data sementara untuk bubble
 
 function getTodayWIB() {
     const d = new Date();
-    // Konversi ke UTC+7 (WIB)
     const wibTime = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + (3600000 * 7));
     return `${wibTime.getFullYear()}-${String(wibTime.getMonth() + 1).padStart(2, '0')}-${String(wibTime.getDate()).padStart(2, '0')}`;
 }
@@ -25,7 +25,6 @@ function getStatsPath() {
 
 function incrementStat(type) {
     const path = getStatsPath();
-    // Menggunakan transaction agar hitungan tidak bentrok jika diakses bersamaan
     db.ref(path).child(type).transaction((currentValue) => {
         return (currentValue || 0) + 1;
     });
@@ -33,30 +32,46 @@ function incrementStat(type) {
 
 function syncStats() {
     const path = getStatsPath();
-    
-    // Matikan listener lama jika user pindah tab (Pub/Priv)
     if (currentStatsRef) currentStatsRef.off();
     
     currentStatsRef = db.ref(path);
     currentStatsRef.on('value', snap => {
         const data = snap.val() || { saved: 0, deleted: 0 };
-        updateStatsUI(data.saved || 0, data.deleted || 0);
+        statsData.saved = data.saved || 0;
+        statsData.deleted = data.deleted || 0;
+        updateStatsUI(); // Render ulang tiap ada data baru
     });
 }
 
-function updateStatsUI(saved, deleted) {
+function updateStatsUI() {
     let bubble = document.getElementById('note-stats-bubble');
     if (!bubble) {
         bubble = document.createElement('div');
         bubble.id = 'note-stats-bubble';
-        bubble.style.cssText = 'position: absolute; right: 20px; top: 15px; background: rgba(128, 128, 128, 0.2); padding: 8px 15px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 10px; font-weight: bold; z-index: 1000; backdrop-filter: blur(5px);';
-        document.body.appendChild(bubble);
+        
+        // Desain kapsul abu-abu
+        bubble.style.cssText = 'background: #f1f3f4; color: #5f6368; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; border: 1px solid #dadce0; margin-left: auto; height: fit-content; margin-bottom: 10px;';
+        
+        const tabPriv = document.getElementById('tab-priv');
+        if (tabPriv && tabPriv.parentElement) {
+            const tabContainer = tabPriv.parentElement; 
+            const wrapper = tabContainer.parentElement; 
+            
+            wrapper.style.display = 'flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.paddingRight = '15px'; 
+            
+            wrapper.insertBefore(bubble, tabContainer.nextSibling);
+        } else {
+            document.body.appendChild(bubble);
+        }
     }
     
     const wibNow = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
     const displayDate = `${String(wibNow.getDate()).padStart(2, '0')}/${String(wibNow.getMonth() + 1).padStart(2, '0')}`;
     
-    bubble.innerHTML = `📅 ${displayDate} | 💾 ${saved} | 🗑️ ${deleted}`;
+    // Tambah icon 📝 untuk total notes sebelum saved
+    bubble.innerHTML = `📅 ${displayDate} &nbsp;&nbsp;|&nbsp;&nbsp; 📝 ${statsData.total} &nbsp;&nbsp;|&nbsp;&nbsp; 💾 ${statsData.saved} &nbsp;&nbsp;|&nbsp;&nbsp; 🗑️ ${statsData.deleted}`;
 }
 // ==========================================
 
@@ -67,7 +82,7 @@ window.addEventListener('authStateChanged', (e) => {
         switchNoteTab('public'); 
     } else {
         syncNotes();
-        syncStats(); // Sinkronisasi statistik saat auth berubah
+        syncStats();
     }
 });
 
@@ -76,6 +91,9 @@ export function switchNoteTab(tab) {
     document.getElementById('tab-pub').classList.toggle('active', tab === 'public');
     document.getElementById('tab-priv').classList.toggle('active', tab === 'private');
     
+    // Reset total saat pindah tab agar tidak muncul data dari tab sebelumnya
+    statsData.total = 0; updateStatsUI();
+
     if (tab === 'private' && !userAdmin) {
         document.getElementById('note-lock-section').classList.remove('hidden');
         document.getElementById('notes-grid').classList.add('hidden');
@@ -85,7 +103,7 @@ export function switchNoteTab(tab) {
         document.getElementById('notes-grid').classList.remove('hidden');
         if (document.getElementById('app-notes').classList.contains('active')) document.getElementById('fab-note').style.display = 'flex';
         syncNotes();
-        syncStats(); // Sinkronisasi statistik saat pindah tab
+        syncStats(); 
     }
 }
 
@@ -102,6 +120,11 @@ function escapeHTML(str) { return !str ? "" : str.replace(/[&<>"']/g, m => ({ '&
 function syncNotes() {
     const path = getNotesPath(); db.ref(path).off();
     db.ref(path).orderByChild('timestamp').on('value', snap => {
+        
+        // Hitung total notes saat ini langsung dari Firebase
+        statsData.total = snap.numChildren();
+        updateStatsUI();
+
         const grid = document.getElementById('notes-grid'); grid.innerHTML = ''; let items = [];
         snap.forEach(child => { items.push({ key: child.key, ...child.val() }); });
         
@@ -172,7 +195,7 @@ function executeNoteSave(title, content, path) {
     const req = (isEditingNote && selectedNoteKey) ? db.ref(`${path}/${selectedNoteKey}`).update(data) : db.ref(path).push(data);
     req.then(() => {
         closeModal('modal-note-form');
-        if (!isEditingNote) incrementStat('saved'); // Hanya hitung tambah jika ini bukan edit catatan
+        if (!isEditingNote) incrementStat('saved'); 
     }).catch(() => showModal("Gagal", "Akses Ditolak.", "alert"));
 }
 
@@ -186,7 +209,7 @@ export function editNote() {
 export async function deleteNote() {
     if(await showModal("Hapus Catatan", "Yakin ingin menghapus catatan ini?", "danger")) {
         db.ref(`${getNotesPath()}/${selectedNoteKey}`).remove().then(() => {
-            incrementStat('deleted'); // Tambah statistik Firebase saat dihapus
+            incrementStat('deleted'); 
             closeModal('modal-note-view');
         }).catch(() => showModal("Gagal", "Gagal menghapus catatan.", "alert"));
     }
