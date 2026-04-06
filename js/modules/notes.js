@@ -5,7 +5,7 @@ let currentNoteTab = 'public'; let selectedNoteKey = null; let currentNoteRaw = 
 let userAdmin = null;
 
 // ==========================================
-// FITUR STATISTIK HARIAN & TOTAL
+// FITUR STATISTIK HARIAN & TOTAL (FIREBASE)
 // ==========================================
 let currentStatsRef = null;
 let statsData = { total: 0, saved: 0, deleted: 0 }; 
@@ -26,17 +26,23 @@ function getStatsPath() {
 function incrementStat(type) {
     try {
         const path = getStatsPath();
-        db.ref(path).child(type).transaction((currentValue) => {
-            return (currentValue || 0) + 1;
-        });
-    } catch (e) { console.warn("Stat error:", e); }
+        db.ref(path).child(type).transaction((currentValue) => (currentValue || 0) + 1);
+    } catch (e) {}
+}
+
+async function resetStatsManual() {
+    const confirm = await showModal("Reset Statistik", "Reset jumlah simpan & hapus hari ini ke 0?", "danger");
+    if (confirm) {
+        try {
+            await db.ref(getStatsPath()).update({ saved: 0, deleted: 0 });
+        } catch (e) { console.error("Reset failed", e); }
+    }
 }
 
 function syncStats() {
     try {
         const path = getStatsPath();
         if (currentStatsRef) currentStatsRef.off();
-        
         currentStatsRef = db.ref(path);
         currentStatsRef.on('value', snap => {
             const data = snap.val() || { saved: 0, deleted: 0 };
@@ -49,88 +55,74 @@ function syncStats() {
 
 function updateStatsUI() {
     try {
-        let statsText = document.getElementById('note-stats-text');
+        let statsContainer = document.getElementById('note-stats-bubble');
         
-        if (!statsText) {
-            statsText = document.createElement('div');
-            statsText.id = 'note-stats-text';
-            
-            // BUBBLE PROFESIONAL: Warnanya disamakan persis dengan .notes-subnav di CSS kamu (#e4e6eb)
-            statsText.style.cssText = `
-                background: #e4e6eb; 
-                color: #65676B; 
-                padding: 6px 15px; 
-                border-radius: 20px; 
-                font-size: 11px; 
-                font-weight: bold; 
-                display: flex; 
-                align-items: center; 
-                gap: 8px;
-                pointer-events: none;
+        if (!statsContainer) {
+            statsContainer = document.createElement('div');
+            statsContainer.id = 'note-stats-bubble';
+            // Styling Bubble: Tinggi 30px, BG #e4e6eb, Font 13px
+            statsContainer.style.cssText = `
+                background: #e4e6eb; color: #4b4d50; height: 30px;
+                padding: 0 5px 0 15px; border-radius: 20px; font-size: 13px; 
+                font-weight: 600; display: flex; align-items: center; gap: 10px;
+                border: 1px solid #ccd0d5; box-sizing: border-box;
             `;
         }
         
-        statsText.innerHTML = `📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}`;
-        
-        const tabPriv = document.getElementById('tab-priv');
-        if (tabPriv && tabPriv.parentElement) {
-            const subnav = tabPriv.parentElement; // Ini adalah elemen <div class="notes-subnav">
-            
-            // Kita buat pembungkus Flexbox agar tombol & statistik sejajar alami tanpa saling tabrak
-            if (!subnav.parentElement.classList.contains('stats-wrapper')) {
-                const wrapper = document.createElement('div');
-                wrapper.className = 'stats-wrapper';
-                wrapper.style.display = 'flex';
-                wrapper.style.justifyContent = 'space-between'; // Mendorong bubble ke paling kanan
-                wrapper.style.alignItems = 'center';
-                wrapper.style.marginBottom = '15px'; // Mengambil alih margin dari subnav
-                
-                subnav.style.marginBottom = '0'; // Hapus margin asli agar tidak dobel
-                
-                subnav.parentNode.insertBefore(wrapper, subnav);
-                wrapper.appendChild(subnav);
-                wrapper.appendChild(statsText);
-            } else {
-                const wrapper = subnav.parentElement;
-                if (!wrapper.contains(statsText)) wrapper.appendChild(statsText);
+        statsContainer.innerHTML = `
+            <span>📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}</span>
+            <div id="btn-reset-stat" style="width: 22px; height: 22px; background: #bcc0c4; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s;" title="Reset Harian">
+                <i class="fas fa-sync-alt" style="font-size: 10px; color: white;"></i>
+            </div>
+        `;
+
+        const btnReset = statsContainer.querySelector('#btn-reset-stat');
+        btnReset.onclick = (e) => { e.stopPropagation(); resetStatsManual(); };
+        btnReset.onmouseover = () => btnReset.style.background = '#4b4d50';
+        btnReset.onmouseout = () => btnReset.style.background = '#bcc0c4';
+
+        const tabBtn = document.getElementById('tab-priv');
+        if (tabBtn && tabBtn.parentElement) {
+            const subnav = tabBtn.parentElement; // .notes-subnav
+            if (!subnav.parentElement.classList.contains('notes-header-row')) {
+                const row = document.createElement('div');
+                row.className = 'notes-header-row';
+                row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; width: 100%;';
+                subnav.style.marginBottom = '0';
+                subnav.parentNode.insertBefore(row, subnav);
+                row.appendChild(subnav);
+                row.appendChild(statsContainer);
             }
         }
-    } catch (error) {
-        console.warn("Gagal render UI Statistik:", error);
-    }
+    } catch (error) {}
 }
+
+// ==========================================
+// CORE FUNCTIONS
 // ==========================================
 
 window.addEventListener('authStateChanged', (e) => { 
     userAdmin = e.detail; 
-    if(currentNoteTab === 'private' && !userAdmin) switchNoteTab('public'); else { syncNotes(); syncStats(); }
+    if(currentNoteTab === 'private' && !userAdmin) switchNoteTab('public'); 
+    else { syncNotes(); syncStats(); }
 });
 
 export function switchNoteTab(tab) {
     currentNoteTab = tab;
+    const tPub = document.getElementById('tab-pub');
+    const tPriv = document.getElementById('tab-priv');
+    if(tPub) tPub.classList.toggle('active', tab === 'public');
+    if(tPriv) tPriv.classList.toggle('active', tab === 'private');
     
-    try {
-        const pubBtn = document.getElementById('tab-pub');
-        const privBtn = document.getElementById('tab-priv');
-        if(pubBtn) pubBtn.classList.toggle('active', tab === 'public');
-        if(privBtn) privBtn.classList.toggle('active', tab === 'private');
-    } catch(e){}
-    
-    statsData.total = 0; updateStatsUI();
-    
-    const lockSec = document.getElementById('note-lock-section');
-    const gridSec = document.getElementById('notes-grid');
-    const fabBtn = document.getElementById('fab-note');
-
     if (tab === 'private' && !userAdmin) {
-        if(lockSec) lockSec.classList.remove('hidden');
-        if(gridSec) gridSec.classList.add('hidden');
-        if(fabBtn) fabBtn.style.display = 'none';
+        document.getElementById('note-lock-section').classList.remove('hidden');
+        document.getElementById('notes-grid').classList.add('hidden');
+        document.getElementById('fab-note').style.display = 'none';
     } else {
-        if(lockSec) lockSec.classList.add('hidden');
-        if(gridSec) gridSec.classList.remove('hidden');
-        if(document.getElementById('app-notes') && document.getElementById('app-notes').classList.contains('active')) {
-            if(fabBtn) fabBtn.style.display = 'flex';
+        document.getElementById('note-lock-section').classList.add('hidden');
+        document.getElementById('notes-grid').classList.remove('hidden');
+        if (document.getElementById('app-notes')?.classList.contains('active')) {
+            document.getElementById('fab-note').style.display = 'flex';
         }
         syncNotes();
         syncStats();
@@ -149,18 +141,14 @@ function escapeHTML(str) { return !str ? "" : str.replace(/[&<>"']/g, m => ({ '&
 
 function syncNotes() {
     const path = getNotesPath(); 
-    try { db.ref(path).off(); } catch(e){}
-    
+    db.ref(path).off();
     db.ref(path).orderByChild('timestamp').on('value', snap => {
         statsData.total = snap.numChildren();
         updateStatsUI();
-
         const grid = document.getElementById('notes-grid'); 
         if(!grid) return;
-        
         grid.innerHTML = ''; let items = [];
         snap.forEach(child => { items.push({ key: child.key, ...child.val() }); });
-        
         items.reverse().forEach(d => {
             const card = document.createElement('div'); card.className = 'note-card'; 
             card.onclick = () => {
@@ -178,48 +166,40 @@ function syncNotes() {
 
 export function openNoteModal() {
     isEditingNote = false; 
-    try {
-        document.getElementById('note-title').value = ""; 
-        document.getElementById('note-content').value = "";
-        document.getElementById('modal-note-form').classList.add('active');
-    } catch(e){}
+    document.getElementById('note-title').value = ""; 
+    document.getElementById('note-content').value = "";
+    document.getElementById('modal-note-form').classList.add('active');
 }
 
 export async function saveNote() {
+    let t = document.getElementById('note-title').value.trim(); 
+    const c = document.getElementById('note-content').value;
+    if(!c) return showModal("Peringatan", "Konten tidak boleh kosong!", "alert");
+    
+    const path = getNotesPath();
     try {
-        let t = document.getElementById('note-title').value.trim(); 
-        const c = document.getElementById('note-content').value;
-        if(!c) return showModal("Peringatan", "Konten tidak boleh kosong!", "alert");
-        
-        const path = getNotesPath();
         const snapshot = await db.ref(path).once('value');
         let usedNumbers = new Set();
         let isDuplicate = false;
 
         snapshot.forEach(child => {
             if (isEditingNote && child.key === selectedNoteKey) return; 
-            const childData = child.val();
-            if (childData.content === c) isDuplicate = true;
-            let titleStr = childData.title;
-            if (titleStr && /^\d+$/.test(titleStr.toString().trim())) {
-                usedNumbers.add(parseInt(titleStr.toString().trim()));
-            }
+            if (child.val().content === c) isDuplicate = true;
+            let titleStr = child.val().title;
+            if (titleStr && /^\d+$/.test(titleStr.toString().trim())) usedNumbers.add(parseInt(titleStr.toString().trim()));
         });
 
         if (isDuplicate) {
-            const confirmSave = await showModal("Teks Duplikat", "Catatan dengan teks yang sama persis sudah ada. Tetap simpan?", "confirm");
-            if (!confirmSave) return;
+            const confirm = await showModal("Teks Duplikat", "Catatan dengan teks yang sama sudah ada. Tetap simpan?", "confirm");
+            if (!confirm) return;
         }
 
         if(!t) {
-            let nextNum = 1; 
-            while (usedNumbers.has(nextNum)) { nextNum++; }
+            let nextNum = 1; while (usedNumbers.has(nextNum)) { nextNum++; }
             t = nextNum.toString();
         }
         executeNoteSave(t, c, path);
-    } catch (e) {
-        showModal("Gagal", "Gagal menghubungi database.", "alert");
-    }
+    } catch (e) { showModal("Gagal", "Gagal menghubungi database.", "alert"); }
 }
 
 function executeNoteSave(title, content, path) {
@@ -227,33 +207,27 @@ function executeNoteSave(title, content, path) {
     const req = (isEditingNote && selectedNoteKey) ? db.ref(`${path}/${selectedNoteKey}`).update(data) : db.ref(path).push(data);
     req.then(() => {
         closeModal('modal-note-form');
-        if (!isEditingNote) incrementStat('saved'); 
+        if (!isEditingNote) incrementStat('saved');
     }).catch(() => showModal("Gagal", "Akses Ditolak.", "alert"));
 }
 
 export function editNote() {
-    try {
-        closeModal('modal-note-view'); isEditingNote = true;
-        document.getElementById('note-title').value = document.getElementById('view-title').innerText;
-        document.getElementById('note-content').value = currentNoteRaw;
-        document.getElementById('modal-note-form').classList.add('active');
-    } catch(e){}
+    closeModal('modal-note-view'); isEditingNote = true;
+    document.getElementById('note-title').value = document.getElementById('view-title').innerText;
+    document.getElementById('note-content').value = currentNoteRaw;
+    document.getElementById('modal-note-form').classList.add('active');
 }
 
 export async function deleteNote() {
     if(await showModal("Hapus Catatan", "Yakin ingin menghapus catatan ini?", "danger")) {
         db.ref(`${getNotesPath()}/${selectedNoteKey}`).remove().then(() => {
-            incrementStat('deleted'); 
+            incrementStat('deleted');
             closeModal('modal-note-view');
-        }).catch(() => showModal("Gagal", "Gagal menghapus catatan.", "alert"));
+        });
     }
 }
 
 export function copyNoteContent(btn) {
-    try {
-        navigator.clipboard.writeText(currentNoteRaw); 
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check"></i> Tersalin'; 
-        setTimeout(() => { btn.innerHTML = originalHTML; }, 1500);
-    } catch(e){}
+    navigator.clipboard.writeText(currentNoteRaw); const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check"></i> Tersalin'; setTimeout(() => { btn.innerHTML = originalHTML; }, 1500);
 }
