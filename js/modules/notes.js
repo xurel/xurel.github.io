@@ -24,86 +24,116 @@ function getStatsPath() {
 }
 
 function incrementStat(type) {
-    const path = getStatsPath();
-    db.ref(path).child(type).transaction((currentValue) => {
-        return (currentValue || 0) + 1;
-    });
+    try {
+        const path = getStatsPath();
+        db.ref(path).child(type).transaction((currentValue) => {
+            return (currentValue || 0) + 1;
+        });
+    } catch (e) { console.warn("Stat error:", e); }
 }
 
 function syncStats() {
-    const path = getStatsPath();
-    if (currentStatsRef) currentStatsRef.off();
-    
-    currentStatsRef = db.ref(path);
-    currentStatsRef.on('value', snap => {
-        const data = snap.val() || { saved: 0, deleted: 0 };
-        statsData.saved = data.saved || 0;
-        statsData.deleted = data.deleted || 0;
-        updateStatsUI(); 
-    });
+    try {
+        const path = getStatsPath();
+        if (currentStatsRef) currentStatsRef.off();
+        
+        currentStatsRef = db.ref(path);
+        currentStatsRef.on('value', snap => {
+            const data = snap.val() || { saved: 0, deleted: 0 };
+            statsData.saved = data.saved || 0;
+            statsData.deleted = data.deleted || 0;
+            updateStatsUI(); 
+        });
+    } catch (e) {}
 }
 
 function updateStatsUI() {
-    let statsText = document.getElementById('note-stats-text');
-    
-    if (!statsText) {
-        statsText = document.createElement('div');
-        statsText.id = 'note-stats-text';
+    try {
+        let statsText = document.getElementById('note-stats-text');
         
-        // BUBBLE PROFESIONAL: Background abu-abu muda, border halus, membulat persis seperti tombol
-        statsText.style.cssText = 'position: absolute; right: 15px; color: #5f6368; font-size: 11px; font-weight: bold; pointer-events: none; z-index: 10; background-color: #f1f3f4; padding: 0 12px; border-radius: 16px; border: 1px solid #dadce0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; white-space: nowrap;';
-    }
-    
-    statsText.innerHTML = `📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}`;
-    
-    const tabPriv = document.getElementById('tab-priv');
-    if (tabPriv) {
-        const pill = tabPriv.parentElement; 
-        const container = pill.parentElement; 
-        
-        if (window.getComputedStyle(container).position === 'static') {
-            container.style.position = 'relative';
+        if (!statsText) {
+            statsText = document.createElement('div');
+            statsText.id = 'note-stats-text';
+            
+            // BUBBLE PROFESIONAL: Warnanya disamakan persis dengan .notes-subnav di CSS kamu (#e4e6eb)
+            statsText.style.cssText = `
+                background: #e4e6eb; 
+                color: #65676B; 
+                padding: 6px 15px; 
+                border-radius: 20px; 
+                font-size: 11px; 
+                font-weight: bold; 
+                display: flex; 
+                align-items: center; 
+                gap: 8px;
+                pointer-events: none;
+            `;
         }
         
-        if (!container.contains(statsText)) {
-            container.appendChild(statsText);
-        }
+        statsText.innerHTML = `📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}`;
         
-        // Menyamakan tinggi bubble dengan tombol Publik/Privat
-        statsText.style.top = pill.offsetTop + 'px';
-        statsText.style.height = pill.offsetHeight + 'px';
+        const tabPriv = document.getElementById('tab-priv');
+        if (tabPriv && tabPriv.parentElement) {
+            const subnav = tabPriv.parentElement; // Ini adalah elemen <div class="notes-subnav">
+            
+            // Kita buat pembungkus Flexbox agar tombol & statistik sejajar alami tanpa saling tabrak
+            if (!subnav.parentElement.classList.contains('stats-wrapper')) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'stats-wrapper';
+                wrapper.style.display = 'flex';
+                wrapper.style.justifyContent = 'space-between'; // Mendorong bubble ke paling kanan
+                wrapper.style.alignItems = 'center';
+                wrapper.style.marginBottom = '15px'; // Mengambil alih margin dari subnav
+                
+                subnav.style.marginBottom = '0'; // Hapus margin asli agar tidak dobel
+                
+                subnav.parentNode.insertBefore(wrapper, subnav);
+                wrapper.appendChild(subnav);
+                wrapper.appendChild(statsText);
+            } else {
+                const wrapper = subnav.parentElement;
+                if (!wrapper.contains(statsText)) wrapper.appendChild(statsText);
+            }
+        }
+    } catch (error) {
+        console.warn("Gagal render UI Statistik:", error);
     }
 }
 // ==========================================
 
-
 window.addEventListener('authStateChanged', (e) => { 
     userAdmin = e.detail; 
-    if(currentNoteTab === 'private' && !userAdmin) {
-        switchNoteTab('public'); 
-    } else {
-        syncNotes();
-        syncStats();
-    }
+    if(currentNoteTab === 'private' && !userAdmin) switchNoteTab('public'); else { syncNotes(); syncStats(); }
 });
 
 export function switchNoteTab(tab) {
     currentNoteTab = tab;
-    document.getElementById('tab-pub').classList.toggle('active', tab === 'public');
-    document.getElementById('tab-priv').classList.toggle('active', tab === 'private');
+    
+    try {
+        const pubBtn = document.getElementById('tab-pub');
+        const privBtn = document.getElementById('tab-priv');
+        if(pubBtn) pubBtn.classList.toggle('active', tab === 'public');
+        if(privBtn) privBtn.classList.toggle('active', tab === 'private');
+    } catch(e){}
     
     statsData.total = 0; updateStatsUI();
+    
+    const lockSec = document.getElementById('note-lock-section');
+    const gridSec = document.getElementById('notes-grid');
+    const fabBtn = document.getElementById('fab-note');
 
     if (tab === 'private' && !userAdmin) {
-        document.getElementById('note-lock-section').classList.remove('hidden');
-        document.getElementById('notes-grid').classList.add('hidden');
-        document.getElementById('fab-note').style.display = 'none';
+        if(lockSec) lockSec.classList.remove('hidden');
+        if(gridSec) gridSec.classList.add('hidden');
+        if(fabBtn) fabBtn.style.display = 'none';
     } else {
-        document.getElementById('note-lock-section').classList.add('hidden');
-        document.getElementById('notes-grid').classList.remove('hidden');
-        if (document.getElementById('app-notes').classList.contains('active')) document.getElementById('fab-note').style.display = 'flex';
+        if(lockSec) lockSec.classList.add('hidden');
+        if(gridSec) gridSec.classList.remove('hidden');
+        if(document.getElementById('app-notes') && document.getElementById('app-notes').classList.contains('active')) {
+            if(fabBtn) fabBtn.style.display = 'flex';
+        }
         syncNotes();
-        syncStats(); 
+        syncStats();
     }
 }
 
@@ -118,13 +148,17 @@ function autoLinkText(text) { return text.replace(/(https?:\/\/[^\s]+)/g, url =>
 function escapeHTML(str) { return !str ? "" : str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
 
 function syncNotes() {
-    const path = getNotesPath(); db.ref(path).off();
+    const path = getNotesPath(); 
+    try { db.ref(path).off(); } catch(e){}
+    
     db.ref(path).orderByChild('timestamp').on('value', snap => {
-        
         statsData.total = snap.numChildren();
         updateStatsUI();
 
-        const grid = document.getElementById('notes-grid'); grid.innerHTML = ''; let items = [];
+        const grid = document.getElementById('notes-grid'); 
+        if(!grid) return;
+        
+        grid.innerHTML = ''; let items = [];
         snap.forEach(child => { items.push({ key: child.key, ...child.val() }); });
         
         items.reverse().forEach(d => {
@@ -143,28 +177,29 @@ function syncNotes() {
 }
 
 export function openNoteModal() {
-    isEditingNote = false; document.getElementById('note-title').value = ""; document.getElementById('note-content').value = "";
-    document.getElementById('modal-note-form').classList.add('active');
+    isEditingNote = false; 
+    try {
+        document.getElementById('note-title').value = ""; 
+        document.getElementById('note-content').value = "";
+        document.getElementById('modal-note-form').classList.add('active');
+    } catch(e){}
 }
 
 export async function saveNote() {
-    let t = document.getElementById('note-title').value.trim(); 
-    const c = document.getElementById('note-content').value;
-    if(!c) return showModal("Peringatan", "Konten tidak boleh kosong!", "alert");
-    
-    const path = getNotesPath();
-
     try {
+        let t = document.getElementById('note-title').value.trim(); 
+        const c = document.getElementById('note-content').value;
+        if(!c) return showModal("Peringatan", "Konten tidak boleh kosong!", "alert");
+        
+        const path = getNotesPath();
         const snapshot = await db.ref(path).once('value');
         let usedNumbers = new Set();
         let isDuplicate = false;
 
         snapshot.forEach(child => {
             if (isEditingNote && child.key === selectedNoteKey) return; 
-            
             const childData = child.val();
             if (childData.content === c) isDuplicate = true;
-
             let titleStr = childData.title;
             if (titleStr && /^\d+$/.test(titleStr.toString().trim())) {
                 usedNumbers.add(parseInt(titleStr.toString().trim()));
@@ -181,9 +216,7 @@ export async function saveNote() {
             while (usedNumbers.has(nextNum)) { nextNum++; }
             t = nextNum.toString();
         }
-
         executeNoteSave(t, c, path);
-
     } catch (e) {
         showModal("Gagal", "Gagal menghubungi database.", "alert");
     }
@@ -199,10 +232,12 @@ function executeNoteSave(title, content, path) {
 }
 
 export function editNote() {
-    closeModal('modal-note-view'); isEditingNote = true;
-    document.getElementById('note-title').value = document.getElementById('view-title').innerText;
-    document.getElementById('note-content').value = currentNoteRaw;
-    document.getElementById('modal-note-form').classList.add('active');
+    try {
+        closeModal('modal-note-view'); isEditingNote = true;
+        document.getElementById('note-title').value = document.getElementById('view-title').innerText;
+        document.getElementById('note-content').value = currentNoteRaw;
+        document.getElementById('modal-note-form').classList.add('active');
+    } catch(e){}
 }
 
 export async function deleteNote() {
@@ -215,6 +250,10 @@ export async function deleteNote() {
 }
 
 export function copyNoteContent(btn) {
-    navigator.clipboard.writeText(currentNoteRaw); const originalHTML = btn.innerHTML;
-    btn.innerHTML = '<i class="fas fa-check"></i> Tersalin'; setTimeout(() => { btn.innerHTML = originalHTML; }, 1500);
+    try {
+        navigator.clipboard.writeText(currentNoteRaw); 
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Tersalin'; 
+        setTimeout(() => { btn.innerHTML = originalHTML; }, 1500);
+    } catch(e){}
 }
