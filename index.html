@@ -40,16 +40,30 @@
         <div class="nav-right"></div>
     </nav>
 
-    <div id="app-shopee" class="app-section active">
-        <div class="content-card">
-            <div class="generate-box">
-                <input type="text" id="genNameOutput" placeholder="---" readonly>
-                <button id="btn-gen" onclick="generateName()"><i class="fa-solid fa-shuffle"></i> Acak Data</button>
-            </div>
+<div id="app-shopee" class="app-section active">
+    <div class="content-card">
+        <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+            <button id="btn-gen" onclick="generateName()" style="flex: 2;">
+                <i class="fa-solid fa-shuffle"></i> Acak Data
+            </button>
+            
+            <button id="btn-prev" style="flex: 1; background: #dc3545; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                <i class="fa-solid fa-chevron-left"></i> Prev
+            </button>
+            
+            <button id="btn-next" style="flex: 1; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                Next <i class="fa-solid fa-chevron-right"></i>
+            </button>
         </div>
-        <h3 style="color: var(--fb-muted); font-size: 14px;">LINK SHOPEE</h3>
-        <div id="shopee-container" class="shopee-grid"></div>
-    </div>
+
+        <input type="text" id="genNameOutput" placeholder="Email akan muncul di sini..." readonly 
+               style="width: 100%; padding: 10px; text-align: center; font-weight: bold; border: 1px solid var(--fb-border); border-radius: 8px;">
+        </div>
+    
+    <h3 style="color: var(--fb-muted); font-size: 14px;">LINK SHOPEE</h3>
+    <div id="shopee-container" class="shopee-grid"></div>
+</div>
+
     
     <button id="fab-shopee" class="fab" style="display: none; background: var(--fb-red);" onclick="openShopeeModal()"><i class="fas fa-plus"></i></button>
 
