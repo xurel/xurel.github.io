@@ -8,7 +8,7 @@ let userAdmin = null;
 // FITUR STATISTIK HARIAN & TOTAL
 // ==========================================
 let currentStatsRef = null;
-let statsData = { total: 0, saved: 0, deleted: 0 }; // Menyimpan data sementara untuk bubble
+let statsData = { total: 0, saved: 0, deleted: 0 }; 
 
 function getTodayWIB() {
     const d = new Date();
@@ -39,39 +39,30 @@ function syncStats() {
         const data = snap.val() || { saved: 0, deleted: 0 };
         statsData.saved = data.saved || 0;
         statsData.deleted = data.deleted || 0;
-        updateStatsUI(); // Render ulang tiap ada data baru
+        updateStatsUI(); 
     });
 }
 
 function updateStatsUI() {
-    let bubble = document.getElementById('note-stats-bubble');
-    if (!bubble) {
-        bubble = document.createElement('div');
-        bubble.id = 'note-stats-bubble';
+    let statsText = document.getElementById('note-stats-text');
+    
+    if (!statsText) {
+        // Membuat elemen teks baru jika belum ada
+        statsText = document.createElement('div');
+        statsText.id = 'note-stats-text';
         
-        // Desain kapsul abu-abu
-        bubble.style.cssText = 'background: #f1f3f4; color: #5f6368; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; border: 1px solid #dadce0; margin-left: auto; height: fit-content; margin-bottom: 10px;';
+        // PERBAIKAN: Tanpa bubble, murni teks. Posisi absolute di kanan.
+        // Hapus manipulasi flexbox agar tombol publik/privat kembali ke model awal.
+        // Catatan: Jika posisi teks kurang ke atas/bawah, kamu bisa ubah nilai "top: 70px" di bawah ini.
+        statsText.style.cssText = 'position: absolute; right: 20px; top: 70px; color: #5f6368; font-size: 12px; font-weight: bold; z-index: 1000;';
         
-        const tabPriv = document.getElementById('tab-priv');
-        if (tabPriv && tabPriv.parentElement) {
-            const tabContainer = tabPriv.parentElement; 
-            const wrapper = tabContainer.parentElement; 
-            
-            wrapper.style.display = 'flex';
-            wrapper.style.alignItems = 'center';
-            wrapper.style.paddingRight = '15px'; 
-            
-            wrapper.insertBefore(bubble, tabContainer.nextSibling);
-        } else {
-            document.body.appendChild(bubble);
-        }
+        document.body.appendChild(statsText);
     }
     
     const wibNow = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
     const displayDate = `${String(wibNow.getDate()).padStart(2, '0')}/${String(wibNow.getMonth() + 1).padStart(2, '0')}`;
     
-    // Tambah icon 📝 untuk total notes sebelum saved
-    bubble.innerHTML = `📅 ${displayDate} &nbsp;&nbsp;|&nbsp;&nbsp; 📝 ${statsData.total} &nbsp;&nbsp;|&nbsp;&nbsp; 💾 ${statsData.saved} &nbsp;&nbsp;|&nbsp;&nbsp; 🗑️ ${statsData.deleted}`;
+    statsText.innerHTML = `📅 ${displayDate} &nbsp;|&nbsp; 📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}`;
 }
 // ==========================================
 
@@ -91,7 +82,6 @@ export function switchNoteTab(tab) {
     document.getElementById('tab-pub').classList.toggle('active', tab === 'public');
     document.getElementById('tab-priv').classList.toggle('active', tab === 'private');
     
-    // Reset total saat pindah tab agar tidak muncul data dari tab sebelumnya
     statsData.total = 0; updateStatsUI();
 
     if (tab === 'private' && !userAdmin) {
@@ -121,7 +111,6 @@ function syncNotes() {
     const path = getNotesPath(); db.ref(path).off();
     db.ref(path).orderByChild('timestamp').on('value', snap => {
         
-        // Hitung total notes saat ini langsung dari Firebase
         statsData.total = snap.numChildren();
         updateStatsUI();
 
