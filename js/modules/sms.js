@@ -27,7 +27,7 @@ window.addEventListener('appSwitched', (e) => { if(e.detail === 'sms' && !smsIni
 function formatPrice(price) {
     if (activeProviderKey === "herosms") return `${price}`;
     if (activeProviderKey === "smsbower") return `$ ${price}`;
-    return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; // OtpCepat dan SMSCode pakai format ini
+    return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; 
 }
 
 // Helper untuk memunculkan Badge Provider atau Ranking
@@ -158,24 +158,62 @@ async function loadSmsPrices() {
     const isSuccess = json.success === true || json.status === "success";
     
     if (isSuccess && json.data && json.data.length > 0) {
-        box.innerHTML = json.data.map(i => {
-            let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
-            let rankBadge = getOperatorBadge(activeProviderKey, i.operator, i.rank);
-            let idLabel = (activeProviderKey === "smsbower" && i.operator !== "any") ? ` <span style="color:#aaa;">(ID: ${i.operator})</span>` : "";
-            let extra = activeProviderKey === "smsbower" ? i.operator : (i.available || "~");
-            let rankParam = i.rank || "S";
+        
+        // 🌟 JIKA HERO / CEPAT: LANGSUNG TAMPILKAN OPERATOR (Bypass Shopee)
+        if (activeProviderKey === "herosms" || activeProviderKey === "otpcepat") {
+            let item = json.data[0]; 
+            let pid = item.id;
+            let name = item.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
+            let basePrice = item.price;
 
-            return `<div class="price-item" onclick="buySms('${i.id}', ${i.price}, '${shortName}', '${extra}', '${rankParam}')">
-                        <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
-                            <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}${idLabel}</div>
-                            ${rankBadge}
-                        </div>
-                        <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                            <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
-                            <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available || '~'} stok</div>
-                        </div>
-                    </div>`;
-        }).join('');
+            let sendPrice = basePrice;
+            let displayPrice = formatPrice(basePrice);
+
+            if (activeProviderKey === "otpcepat") {
+                sendPrice = 1100;
+                displayPrice = formatPrice(1100);
+            }
+
+            // Pilihan Tanpa 'BEBAS'
+            const ops = [
+                { id: "telkomsel", label: "TELKOMSEL" },
+                { id: "indosat", label: "INDOSAT" },
+                { id: "axis", label: "AXIS" },
+                { id: "three", label: "THREE" },
+                { id: "xl", label: "XL" },
+                { id: "smartfren", label: "SMARTFREN" }
+            ];
+
+            let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${displayPrice}</div>`;
+
+            ops.forEach(op => {
+                html += `<div class="price-item" onclick="executeBuySms('${pid}', ${sendPrice}, '${name}', '${op.id}', '')">
+                    <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${op.label}</div>
+                    <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
+                </div>`;
+            });
+            box.innerHTML = html;
+        } else {
+            // 🌟 JIKA BOWER / CODE: TAMPILKAN DAFTAR SEPERTI BIASA
+            box.innerHTML = json.data.map(i => {
+                let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
+                let rankBadge = getOperatorBadge(activeProviderKey, i.operator, i.rank);
+                let idLabel = (activeProviderKey === "smsbower" && i.operator !== "any") ? ` <span style="color:#aaa;">(ID: ${i.operator})</span>` : "";
+                let extra = activeProviderKey === "smsbower" ? i.operator : (i.available || "~");
+                let rankParam = i.rank || "S";
+
+                return `<div class="price-item" onclick="executeBuySms('${i.id}', ${i.price}, '${shortName}', '${extra}', '${rankParam}')">
+                            <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
+                                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${shortName}${idLabel}</div>
+                                ${rankBadge}
+                            </div>
+                            <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
+                                <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available || '~'} stok</div>
+                            </div>
+                        </div>`;
+            }).join('');
+        }
     } else { 
         box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">${json.error?.message || json.message || json.error || 'Stok Kosong'}</div>`;
     }
@@ -184,15 +222,21 @@ async function loadSmsPrices() {
 function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
     
-    let borderColor = "#95a5a6"; // default code (abu-abu)
-    if (activeProviderKey === "herosms") borderColor = "#8e44ad"; // ungu
-    if (activeProviderKey === "smsbower") borderColor = "#27ae60"; // hijau
-    if (activeProviderKey === "otpcepat") borderColor = "#e74c3c"; // merah (Sesuai permintaan Anda)
+    let borderColor = "#95a5a6"; 
+    if (activeProviderKey === "herosms") borderColor = "#8e44ad";
+    if (activeProviderKey === "smsbower") borderColor = "#27ae60";
+    if (activeProviderKey === "otpcepat") borderColor = "#e74c3c"; 
     
+    // Pemotongan ID Khusus OtpCepat agar rapi
+    let displayId = oId;
+    if (activeProviderKey === "otpcepat" && String(oId).length > 6) {
+        displayId = "..." + String(oId).slice(-4);
+    }
+
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
-                <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${oId}</span>
+                <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${displayId}</span>
                 <span class="badge-status" style="font-size:10px; color:#fff; font-family:sans-serif; background:${borderColor}; padding:3px 6px; border-radius:4px; font-weight:bold;">ACTIVE</span>
                 <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace; display:flex; align-items:center;">${priceDisplay}</span>
             </div>
@@ -210,56 +254,13 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
             <div class="otp-container" style="min-height:35px; display:flex; align-items:center; justify-content:center;">${otpDisplay}</div>
         </div>
         <div class="btn-grid-4">
-            <button class="sms-btn btn-done" onclick="actSms('finish', ${oId})" ${doneStyle}>✓ DONE</button>
-            <button class="sms-btn btn-resend" onclick="actSms('resend', ${oId})" ${resendState}>↻ RESEND</button>
-            <button class="sms-btn btn-cancel" onclick="actSms('cancel', ${oId})" ${cancelState}>✕ CANCEL</button>
-            <button class="sms-btn btn-replace" onclick="actSms('replace', ${oId})" ${replaceState}>⇄ REPLACE</button>
+            <button class="sms-btn btn-done" onclick="actSms('finish', '${oId}')" ${doneStyle}>✓ DONE</button>
+            <button class="sms-btn btn-resend" onclick="actSms('resend', '${oId}')" ${resendState}>↻ RESEND</button>
+            <button class="sms-btn btn-cancel" onclick="actSms('cancel', '${oId}')" ${cancelState}>✕ CANCEL</button>
+            <button class="sms-btn btn-replace" onclick="actSms('replace', '${oId}')" ${replaceState}>⇄ REPLACE</button>
         </div>
     </div>`;
 }
-
-export async function buySms(pid, price, name, extra = "~", rank = "S") {
-    // HERO SMS DAN OTP CEPAT MENAMPILKAN POP-UP PROVIDER
-    if (activeProviderKey === "herosms" || activeProviderKey === "otpcepat") {
-        const box = document.getElementById('sms-prices');
-        box.innerHTML = '<div style="padding:30px; text-align:center; color:#888;">Memuat Provider...</div>';
-        
-        const ops = [
-            { id: "any", label: "BEBAS (Acak Provider)" },
-            { id: "telkomsel", label: "TELKOMSEL" },
-            { id: "indosat", label: "INDOSAT" },
-            { id: "axis", label: "AXIS" },
-            { id: "three", label: "THREE" },
-            { id: "xl", label: "XL" },
-            { id: "smartfren", label: "SMARTFREN" }
-        ];
-
-        let sendPrice = price;
-        let displayPrice = formatPrice(price);
-
-        // Kunci harga khusus untuk OtpCepat menjadi 1100
-        if (activeProviderKey === "otpcepat") {
-            sendPrice = 1100;
-            displayPrice = formatPrice(1100);
-        }
-
-        let html = `<div style="padding:15px 10px; font-weight:bold; text-align:center; color:var(--fb-blue); border-bottom:1px dashed var(--fb-border); margin-bottom:10px;">Pilih Provider untuk Harga ${displayPrice}</div>`;
-
-        ops.forEach(op => {
-            html += `<div class="price-item" onclick="executeBuySms('${pid}', ${sendPrice}, '${name}', '${op.id}', '')">
-                <div style="flex: 1; font-weight:bold; padding-left:5px; color:var(--fb-text);">${op.label}</div>
-                <i class="fa-solid fa-chevron-right" style="color:var(--fb-muted);"></i>
-            </div>`;
-        });
-        html += `<button class="sms-btn btn-cancel" style="width:100%; margin-top:15px; padding:12px;" onclick="refreshSms()">Batal / Kembali</button>`;
-        box.innerHTML = html;
-    } else if (activeProviderKey === "smsbower") {
-        executeBuySms(pid, price, name, extra, rank);
-    } else {
-        executeBuySms(pid, price, name, "any", "");
-    }
-}
-window.buySms = buySms;
 
 export async function executeBuySms(pid, price, name, operator, rank = "") {
     const pText = formatPrice(price);
@@ -414,6 +415,16 @@ function renderSmsOrders(orders) {
 
             const priceBox = existingCard.querySelector('.price-box');
             if (priceBox && serverPrice) priceBox.innerHTML = priceDisplay;
+
+            // Pembaruan ID Dinamis OtpCepat pada Kartu yang Sudah Ada
+            let displayNewId = o.id;
+            if (activeProviderKey === "otpcepat" && String(o.id).length > 4) {
+                displayNewId = "..." + String(o.id).slice(-4);
+            }
+            const spans = existingCard.querySelectorAll('span');
+            spans.forEach(sp => { 
+                if (sp.innerText.trim().startsWith('#')) sp.innerText = `#${displayNewId}`; 
+            });
 
             if (o.otp_code) {
                 const btnDone = existingCard.querySelector('.btn-done');
@@ -584,22 +595,29 @@ export async function actSms(action, id) {
                     if (timerEl) { timerEl.dataset.id = od.id; timerEl.innerText = '--:--'; }
 
                     const btnDone = oldCard.querySelector('.btn-done');
-                    if (btnDone) { btnDone.disabled = true; btnDone.style.background = ''; btnDone.style.borderColor = ''; btnDone.style.color = ''; btnDone.setAttribute('onclick', `actSms('finish', ${od.id})`); }
+                    if (btnDone) { btnDone.disabled = true; btnDone.style.background = ''; btnDone.style.borderColor = ''; btnDone.style.color = ''; btnDone.setAttribute('onclick', `actSms('finish', '${od.id}')`); }
                     
                     const btnResend = oldCard.querySelector('.btn-resend');
-                    if (btnResend) { btnResend.disabled = true; btnResend.setAttribute('onclick', `actSms('resend', ${od.id})`); }
+                    if (btnResend) { btnResend.disabled = true; btnResend.setAttribute('onclick', `actSms('resend', '${od.id}')`); }
                     
                     const btnCancel = oldCard.querySelector('.btn-cancel');
-                    if (btnCancel) { btnCancel.disabled = true; btnCancel.setAttribute('onclick', `actSms('cancel', ${od.id})`); }
+                    if (btnCancel) { btnCancel.disabled = true; btnCancel.setAttribute('onclick', `actSms('cancel', '${od.id}')`); }
                     
                     const btnReplace = oldCard.querySelector('.btn-replace');
-                    if (btnReplace) { btnReplace.disabled = true; btnReplace.setAttribute('onclick', `actSms('replace', ${od.id})`); }
+                    if (btnReplace) { btnReplace.disabled = true; btnReplace.setAttribute('onclick', `actSms('replace', '${od.id}')`); }
                     
                     const hideBtn = oldCard.querySelector('.hide-btn-icon');
-                    if (hideBtn) hideBtn.setAttribute('onclick', `hideSmsCard(${od.id})`);
+                    if (hideBtn) hideBtn.setAttribute('onclick', `hideSmsCard('${od.id}')`);
 
+                    // Perbarui ID pada tampilan baru dengan format singkat jika OtpCepat
+                    let displayNewId = od.id;
+                    if (activeProviderKey === "otpcepat" && String(od.id).length > 4) {
+                        displayNewId = "..." + String(od.id).slice(-4);
+                    }
                     const spans = oldCard.querySelectorAll('span');
-                    spans.forEach(sp => { if (sp.innerText.trim() === `#${id}`) sp.innerText = `#${od.id}`; });
+                    spans.forEach(sp => { 
+                        if (sp.innerText.trim().startsWith('#')) sp.innerText = `#${displayNewId}`; 
+                    });
                     
                     const copyIcon = oldCard.querySelector('.fa-copy, .fa-circle-check');
                     if (copyIcon) copyIcon.id = `copy-icon-${od.id}`;
