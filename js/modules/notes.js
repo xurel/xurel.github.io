@@ -47,16 +47,25 @@ function updateStatsUI() {
     let statsText = document.getElementById('note-stats-text');
     
     if (!statsText) {
-        // Membuat elemen teks baru jika belum ada
         statsText = document.createElement('div');
         statsText.id = 'note-stats-text';
         
-        // PERBAIKAN: Tanpa bubble, murni teks. Posisi absolute di kanan.
-        // Hapus manipulasi flexbox agar tombol publik/privat kembali ke model awal.
-        // Catatan: Jika posisi teks kurang ke atas/bawah, kamu bisa ubah nilai "top: 70px" di bawah ini.
-        statsText.style.cssText = 'position: absolute; right: 20px; top: 70px; color: #5f6368; font-size: 12px; font-weight: bold; z-index: 1000;';
+        // MURNI TEKS: Tidak ada background, diposisikan ke sebelah kanan
+        statsText.style.cssText = 'position: absolute; right: 15px; margin-top: 8px; color: #5f6368; font-size: 12px; font-weight: bold; pointer-events: none;';
         
-        document.body.appendChild(statsText);
+        const tabPriv = document.getElementById('tab-priv');
+        if (tabPriv) {
+            const buttonContainer = tabPriv.parentElement; // div kapsul Publik/Privat
+            const headerRow = buttonContainer.parentElement; // div baris pembungkusnya
+            
+            // Jadikan baris ini sebagai patokan posisi agar teks tidak melayang ke atas toolbar
+            if (window.getComputedStyle(headerRow).position === 'static') {
+                headerRow.style.position = 'relative';
+            }
+            
+            // Masukkan teks HANYA ke dalam area notes, BUKAN ke document.body
+            headerRow.appendChild(statsText);
+        }
     }
     
     const wibNow = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
