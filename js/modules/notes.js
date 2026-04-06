@@ -50,28 +50,30 @@ function updateStatsUI() {
         statsText = document.createElement('div');
         statsText.id = 'note-stats-text';
         
-        // MURNI TEKS: Tidak ada background, diposisikan ke sebelah kanan
-        statsText.style.cssText = 'position: absolute; right: 15px; margin-top: 8px; color: #5f6368; font-size: 12px; font-weight: bold; pointer-events: none;';
-        
-        const tabPriv = document.getElementById('tab-priv');
-        if (tabPriv) {
-            const buttonContainer = tabPriv.parentElement; // div kapsul Publik/Privat
-            const headerRow = buttonContainer.parentElement; // div baris pembungkusnya
-            
-            // Jadikan baris ini sebagai patokan posisi agar teks tidak melayang ke atas toolbar
-            if (window.getComputedStyle(headerRow).position === 'static') {
-                headerRow.style.position = 'relative';
-            }
-            
-            // Masukkan teks HANYA ke dalam area notes, BUKAN ke document.body
-            headerRow.appendChild(statsText);
-        }
+        // MURNI TEKS: Tidak menggunakan absolute. 
+        // margin-left: auto akan mendorong teks mentok ke arah kanan.
+        statsText.style.cssText = 'color: #5f6368; font-size: 12px; font-weight: bold; pointer-events: none; margin-left: auto; padding-right: 15px;';
     }
     
     const wibNow = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
     const displayDate = `${String(wibNow.getDate()).padStart(2, '0')}/${String(wibNow.getMonth() + 1).padStart(2, '0')}`;
     
     statsText.innerHTML = `📅 ${displayDate} &nbsp;|&nbsp; 📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}`;
+    
+    const tabPriv = document.getElementById('tab-priv');
+    if (tabPriv) {
+        const pill = tabPriv.parentElement; // Ini adalah elemen kapsul abu-abu "Publik | Privat"
+        const row = pill.parentElement; // Ini adalah baris yang menampung kapsul tersebut
+        
+        // Menjadikan baris penampung sebagai flexbox agar sejajar sempurna (vertikal & horizontal)
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        
+        // Memasukkan teks statistik KE DALAM baris yang sama dengan tombol
+        if (!document.body.contains(statsText)) {
+            row.appendChild(statsText);
+        }
+    }
 }
 // ==========================================
 
