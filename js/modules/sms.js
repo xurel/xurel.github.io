@@ -7,7 +7,7 @@ const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
     "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" },
-    "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" } // <-- URL OTPCEPAT ANDA
+    "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" }
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -30,7 +30,6 @@ function formatPrice(price) {
     return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; 
 }
 
-// Helper untuk memunculkan Badge Provider atau Ranking
 function getOperatorBadge(provider, opCode, rank) {
     if ((provider === "herosms" || provider === "otpcepat") && opCode && opCode !== "any") {
         const opMap = { "telkomsel": "TL", "indosat": "ST", "axis": "XS", "three": "TR", "xl": "XL", "smartfren": "SM" };
@@ -159,7 +158,6 @@ async function loadSmsPrices() {
     
     if (isSuccess && json.data && json.data.length > 0) {
         
-        // 🌟 JIKA HERO / CEPAT: Tampilkan Operator dengan STRUKTUR UI yang Sempurna
         if (activeProviderKey === "herosms" || activeProviderKey === "otpcepat") {
             let item = json.data.find(x => x.name && x.name.toLowerCase().includes("shope")) || json.data[0];
             let pid = item ? item.id : "ka";
@@ -179,10 +177,10 @@ async function loadSmsPrices() {
             ];
 
             box.innerHTML = ops.map(op => {
-                // Struktur price-item normal yang rapi dan elegan
+                // Menggunakan struktur item harga yang seragam dengan yang lain
                 return `<div class="price-item" onclick="executeBuySms('${pid}', ${sendPrice}, '${name}', '${op.id}', '')">
                             <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
-                                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color:var(--fb-text);">${op.label}</div>
+                                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${op.label}</div>
                             </div>
                             <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
                                 <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${displayPrice}</div>
@@ -191,7 +189,6 @@ async function loadSmsPrices() {
                         </div>`;
             }).join('');
         } else {
-            // 🌟 JIKA BOWER / CODE: TAMPILKAN DAFTAR SEPERTI BIASA
             box.innerHTML = json.data.map(i => {
                 let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
                 let rankBadge = getOperatorBadge(activeProviderKey, i.operator, i.rank);
@@ -222,14 +219,13 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
     let borderColor = "#95a5a6"; 
     if (activeProviderKey === "herosms") borderColor = "#8e44ad";
     if (activeProviderKey === "smsbower") borderColor = "#27ae60";
-    if (activeProviderKey === "otpcepat") borderColor = "#e74c3c"; // Merah
+    if (activeProviderKey === "otpcepat") borderColor = "#e74c3c"; 
     
     let displayId = oId;
     if (activeProviderKey === "otpcepat" && String(oId).length > 6) {
         displayId = "..." + String(oId).slice(-4);
     }
 
-    // PENTING: Perhatikan penggunaan tanda kutip '${oId}' pada semua fungsi onclick agar JS tidak error
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
             <div style="display:flex; align-items:center; gap:8px;">
@@ -259,7 +255,6 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
     </div>`;
 }
 
-// Fungsi ini sengaja dibuat pendek karena Pop-Up Bypass sudah tidak diperlukan lagi
 export async function buySms(pid, price, name, extra = "~", rank = "S") {
     let operator = extra === "~" ? "any" : extra;
     executeBuySms(pid, price, name, operator, rank);
@@ -295,7 +290,6 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         const extraBadge = getOperatorBadge(activeProviderKey, operator, rank);
         const priceDisplay = formatPrice(price) + extraBadge;
         
-        // CANCEL INSTAN: OtpCepat dan Bower langsung aktif sejak awal!
         let cancelState = (activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") ? '' : 'disabled';
         let replaceState = 'disabled'; 
 
