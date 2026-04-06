@@ -7,7 +7,7 @@ const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
     "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" },
-    "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" }
+    "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" } // <-- URL OTPCEPAT ANDA
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -30,6 +30,7 @@ function formatPrice(price) {
     return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; 
 }
 
+// Helper untuk memunculkan Badge Provider atau Ranking
 function getOperatorBadge(provider, opCode, rank) {
     if ((provider === "herosms" || provider === "otpcepat") && opCode && opCode !== "any") {
         const opMap = { "telkomsel": "TL", "indosat": "ST", "axis": "XS", "three": "TR", "xl": "XL", "smartfren": "SM" };
@@ -158,6 +159,7 @@ async function loadSmsPrices() {
     
     if (isSuccess && json.data && json.data.length > 0) {
         
+        // 🌟 JIKA HERO / CEPAT: Tampilkan Operator
         if (activeProviderKey === "herosms" || activeProviderKey === "otpcepat") {
             let item = json.data.find(x => x.name && x.name.toLowerCase().includes("shope")) || json.data[0];
             let pid = item ? item.id : "ka";
@@ -177,18 +179,18 @@ async function loadSmsPrices() {
             ];
 
             box.innerHTML = ops.map(op => {
-                // Menggunakan struktur item harga yang seragam dengan yang lain
                 return `<div class="price-item" onclick="executeBuySms('${pid}', ${sendPrice}, '${name}', '${op.id}', '')">
                             <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
-                                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${op.label}</div>
+                                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color:var(--fb-text);">${op.label}</div>
                             </div>
                             <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${displayPrice}</div>
-                                <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">~ stok</div>
+                                <div style="min-width: 85px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; white-space: nowrap;">${displayPrice}</div>
+                                <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">~ stok</div>
                             </div>
                         </div>`;
             }).join('');
         } else {
+            // 🌟 JIKA BOWER / CODE: TAMPILKAN DAFTAR SEPERTI BIASA
             box.innerHTML = json.data.map(i => {
                 let shortName = i.name.replace(/Indonesia/ig, '').replace(/\s+/g, ' ').trim();
                 let rankBadge = getOperatorBadge(activeProviderKey, i.operator, i.rank);
@@ -202,8 +204,8 @@ async function loadSmsPrices() {
                                 ${rankBadge}
                             </div>
                             <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                                <div style="width: 65px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900;">${formatPrice(i.price)}</div>
-                                <div style="width: 75px; text-align: right; font-size:12px; color:var(--fb-muted);">${i.available || '~'} stok</div>
+                                <div style="min-width: 85px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; white-space: nowrap;">${formatPrice(i.price)}</div>
+                                <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">${i.available || '~'} stok</div>
                             </div>
                         </div>`;
             }).join('');
@@ -231,7 +233,7 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="color:var(--fb-blue); font-weight:bold; font-family:monospace; font-size:15px;">#${displayId}</span>
                 <span class="badge-status" style="font-size:10px; color:#fff; font-family:sans-serif; background:${borderColor}; padding:3px 6px; border-radius:4px; font-weight:bold;">ACTIVE</span>
-                <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace; display:flex; align-items:center;">${priceDisplay}</span>
+                <span class="price-box" style="font-size:16px; font-weight:900; color:var(--fb-red); font-family:monospace; display:flex; align-items:center; white-space: nowrap;">${priceDisplay}</span>
             </div>
             <div style="display:flex; align-items:center; gap:10px;">
                 <i class="fa-regular fa-eye-slash hide-btn-icon" onclick="hideSmsCard('${oId}')" style="color: var(--fb-muted); cursor:pointer; font-size:14px; padding: 5px;"></i>
@@ -290,6 +292,7 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         const extraBadge = getOperatorBadge(activeProviderKey, operator, rank);
         const priceDisplay = formatPrice(price) + extraBadge;
         
+        // CANCEL INSTAN: OtpCepat dan Bower langsung aktif sejak awal!
         let cancelState = (activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") ? '' : 'disabled';
         let replaceState = 'disabled'; 
 
