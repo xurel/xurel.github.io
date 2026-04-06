@@ -4,9 +4,71 @@ import { showModal, closeModal } from './ui.js';
 let currentNoteTab = 'public'; let selectedNoteKey = null; let currentNoteRaw = ""; let isEditingNote = false;
 let userAdmin = null;
 
+// ==========================================
+// FITUR STATISTIK HARIAN (FIREBASE REALTIME)
+// ==========================================
+let currentStatsRef = null;
+
+function getTodayWIB() {
+    const d = new Date();
+    // Konversi ke UTC+7 (WIB)
+    const wibTime = new Date(d.getTime() + (d.getTimezoneOffset() * 60000) + (3600000 * 7));
+    return `${wibTime.getFullYear()}-${String(wibTime.getMonth() + 1).padStart(2, '0')}-${String(wibTime.getDate()).padStart(2, '0')}`;
+}
+
+function getStatsPath() {
+    const today = getTodayWIB();
+    return (currentNoteTab === 'private' && userAdmin) 
+        ? `notes_stats/users/${userAdmin.uid}/${today}` 
+        : `notes_stats/public/${today}`;
+}
+
+function incrementStat(type) {
+    const path = getStatsPath();
+    // Menggunakan transaction agar hitungan tidak bentrok jika diakses bersamaan
+    db.ref(path).child(type).transaction((currentValue) => {
+        return (currentValue || 0) + 1;
+    });
+}
+
+function syncStats() {
+    const path = getStatsPath();
+    
+    // Matikan listener lama jika user pindah tab (Pub/Priv)
+    if (currentStatsRef) currentStatsRef.off();
+    
+    currentStatsRef = db.ref(path);
+    currentStatsRef.on('value', snap => {
+        const data = snap.val() || { saved: 0, deleted: 0 };
+        updateStatsUI(data.saved || 0, data.deleted || 0);
+    });
+}
+
+function updateStatsUI(saved, deleted) {
+    let bubble = document.getElementById('note-stats-bubble');
+    if (!bubble) {
+        bubble = document.createElement('div');
+        bubble.id = 'note-stats-bubble';
+        bubble.style.cssText = 'position: absolute; right: 20px; top: 15px; background: rgba(128, 128, 128, 0.2); padding: 8px 15px; border-radius: 20px; font-size: 12px; display: flex; align-items: center; gap: 10px; font-weight: bold; z-index: 1000; backdrop-filter: blur(5px);';
+        document.body.appendChild(bubble);
+    }
+    
+    const wibNow = new Date(new Date().getTime() + (new Date().getTimezoneOffset() * 60000) + (3600000 * 7));
+    const displayDate = `${String(wibNow.getDate()).padStart(2, '0')}/${String(wibNow.getMonth() + 1).padStart(2, '0')}`;
+    
+    bubble.innerHTML = `📅 ${displayDate} | 💾 ${saved} | 🗑️ ${deleted}`;
+}
+// ==========================================
+
+
 window.addEventListener('authStateChanged', (e) => { 
     userAdmin = e.detail; 
-    if(currentNoteTab === 'private' && !userAdmin) switchNoteTab('public'); else syncNotes();
+    if(currentNoteTab === 'private' && !userAdmin) {
+        switchNoteTab('public'); 
+    } else {
+        syncNotes();
+        syncStats(); // Sinkronisasi statistik saat auth berubah
+    }
 });
 
 export function switchNoteTab(tab) {
@@ -23,14 +85,17 @@ export function switchNoteTab(tab) {
         document.getElementById('notes-grid').classList.remove('hidden');
         if (document.getElementById('app-notes').classList.contains('active')) document.getElementById('fab-note').style.display = 'flex';
         syncNotes();
+        syncStats(); // Sinkronisasi statistik saat pindah tab
     }
 }
 
 function getNotesPath() { return (currentNoteTab === 'private' && userAdmin) ? `notes/users/${userAdmin.uid}` : 'notes/public'; }
+
 function formatDate(ts) {
     if(!ts) return "---"; const d = new Date(ts);
     return `${['Ming', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'][d.getDay()]}, ${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getFullYear()).slice(-2)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
+
 function autoLinkText(text) { return text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank" class="text-link" onclick="event.stopPropagation()">${url}</a>`); }
 function escapeHTML(str) { return !str ? "" : str.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m])); }
 
@@ -60,28 +125,55 @@ export function openNoteModal() {
     document.getElementById('modal-note-form').classList.add('active');
 }
 
-export function saveNote() {
-    let t = document.getElementById('note-title').value.trim(); const c = document.getElementById('note-content').value;
+export async function saveNote() {
+    let t = document.getElementById('note-title').value.trim(); 
+    const c = document.getElementById('note-content').value;
     if(!c) return showModal("Peringatan", "Konten tidak boleh kosong!", "alert");
+    
     const path = getNotesPath();
-    if(!t) {
-        db.ref(path).once('value').then(snapshot => {
-            let usedNumbers = new Set();
-            snapshot.forEach(child => {
-                if (isEditingNote && child.key === selectedNoteKey) return; 
-                let titleStr = child.val().title;
-                if (titleStr && /^\d+$/.test(titleStr.toString().trim())) usedNumbers.add(parseInt(titleStr.toString().trim()));
-            });
-            let nextNum = 1; while (usedNumbers.has(nextNum)) { nextNum++; }
-            executeNoteSave(nextNum.toString(), c, path);
-        }).catch(e => showModal("Gagal", "Gagal menghubungi database.", "alert"));
-    } else { executeNoteSave(t, c, path); }
+
+    try {
+        const snapshot = await db.ref(path).once('value');
+        let usedNumbers = new Set();
+        let isDuplicate = false;
+
+        snapshot.forEach(child => {
+            if (isEditingNote && child.key === selectedNoteKey) return; 
+            
+            const childData = child.val();
+            if (childData.content === c) isDuplicate = true;
+
+            let titleStr = childData.title;
+            if (titleStr && /^\d+$/.test(titleStr.toString().trim())) {
+                usedNumbers.add(parseInt(titleStr.toString().trim()));
+            }
+        });
+
+        if (isDuplicate) {
+            const confirmSave = await showModal("Teks Duplikat", "Catatan dengan teks yang sama persis sudah ada. Tetap simpan?", "confirm");
+            if (!confirmSave) return;
+        }
+
+        if(!t) {
+            let nextNum = 1; 
+            while (usedNumbers.has(nextNum)) { nextNum++; }
+            t = nextNum.toString();
+        }
+
+        executeNoteSave(t, c, path);
+
+    } catch (e) {
+        showModal("Gagal", "Gagal menghubungi database.", "alert");
+    }
 }
 
 function executeNoteSave(title, content, path) {
     const data = { title: title, content: content, timestamp: Date.now() };
     const req = (isEditingNote && selectedNoteKey) ? db.ref(`${path}/${selectedNoteKey}`).update(data) : db.ref(path).push(data);
-    req.then(() => closeModal('modal-note-form')).catch(() => showModal("Gagal", "Akses Ditolak.", "alert"));
+    req.then(() => {
+        closeModal('modal-note-form');
+        if (!isEditingNote) incrementStat('saved'); // Hanya hitung tambah jika ini bukan edit catatan
+    }).catch(() => showModal("Gagal", "Akses Ditolak.", "alert"));
 }
 
 export function editNote() {
@@ -93,7 +185,10 @@ export function editNote() {
 
 export async function deleteNote() {
     if(await showModal("Hapus Catatan", "Yakin ingin menghapus catatan ini?", "danger")) {
-        db.ref(`${getNotesPath()}/${selectedNoteKey}`).remove(); closeModal('modal-note-view');
+        db.ref(`${getNotesPath()}/${selectedNoteKey}`).remove().then(() => {
+            incrementStat('deleted'); // Tambah statistik Firebase saat dihapus
+            closeModal('modal-note-view');
+        }).catch(() => showModal("Gagal", "Gagal menghapus catatan.", "alert"));
     }
 }
 
