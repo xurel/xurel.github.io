@@ -5,7 +5,7 @@ import { showModal } from './ui.js';
 // ==========================================
 const PROVIDERS = {
     "smscode": { name: "Code", url: "https://sms.aam-zip.workers.dev" },
-    "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
+    "herosms": { name: "Hero", url: "https://hero.hero-7a2.workers.dev" },
     "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" },
     "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" } // <-- URL OTPCEPAT ANDA
 };
