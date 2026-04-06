@@ -5,7 +5,7 @@ let currentNoteTab = 'public'; let selectedNoteKey = null; let currentNoteRaw = 
 let userAdmin = null;
 
 // ==========================================
-// FITUR STATISTIK HARIAN & TOTAL
+// FITUR STATISTIK HARIAN & TOTAL (FIREBASE)
 // ==========================================
 let currentStatsRef = null;
 let statsData = { total: 0, saved: 0, deleted: 0 }; 
@@ -26,16 +26,13 @@ function getStatsPath() {
 function incrementStat(type) {
     try {
         const path = getStatsPath();
-        db.ref(path).child(type).transaction((currentValue) => (currentValue || 0) + 1);
+        db.ref(path).child(type).transaction((val) => (val || 0) + 1);
     } catch (e) {}
 }
 
 async function resetStatsManual() {
-    const confirm = await showModal("Reset Statistik", "Hapus data simpan & hapus hari ini?", "danger");
-    if (confirm) {
-        try {
-            await db.ref(getStatsPath()).update({ saved: 0, deleted: 0 });
-        } catch (e) {}
+    if (await showModal("Reset Statistik", "Hapus data simpan & hapus hari ini menjadi 0?", "danger")) {
+        try { await db.ref(getStatsPath()).update({ saved: 0, deleted: 0 }); } catch (e) {}
     }
 }
 
@@ -45,57 +42,80 @@ function syncStats() {
         if (currentStatsRef) currentStatsRef.off();
         currentStatsRef = db.ref(path);
         currentStatsRef.on('value', snap => {
-            const data = snap.val() || { saved: 0, deleted: 0 };
-            statsData.saved = data.saved || 0;
-            statsData.deleted = data.deleted || 0;
+            const d = snap.val() || { saved: 0, deleted: 0 };
+            statsData.saved = d.saved || 0;
+            statsData.deleted = d.deleted || 0;
             updateStatsUI(); 
         });
     } catch (e) {}
 }
 
 function updateStatsUI() {
-    try {
-        let statsContainer = document.getElementById('note-stats-unified');
-        const subnav = document.querySelector('.notes-subnav');
-        
-        if (!subnav) return;
+    const subnav = document.querySelector('.notes-subnav');
+    if (!subnav) return;
 
-        if (!statsContainer) {
-            statsContainer = document.createElement('div');
-            statsContainer.id = 'note-stats-unified';
-            // Styling agar menyatu dengan subnav (background & border-radius sama)
-            statsContainer.style.cssText = `
-                display: flex; align-items: center; gap: 12px;
-                margin-left: 15px; padding-left: 15px;
-                border-left: 1px solid #ccd0d5; height: 20px;
-                color: #65676B; font-size: 13px; font-weight: 600;
-            `;
-            subnav.appendChild(statsContainer);
-            // Menyesuaikan lebar subnav agar menampung statistik
-            subnav.style.width = 'auto';
-            subnav.style.maxWidth = 'none';
-            subnav.style.display = 'flex';
-            subnav.style.alignItems = 'center';
-        }
-        
-        statsContainer.innerHTML = `
-            <span>📝 ${statsData.total} &nbsp;|&nbsp; 💾 ${statsData.saved} &nbsp;|&nbsp; 🗑️ ${statsData.deleted}</span>
-            <div id="btn-reset-stat" style="
-                width: 22px; height: 22px; background: #bcc0c4; 
-                border-radius: 50%; display: flex; align-items: center; 
-                justify-content: center; cursor: pointer; transition: 0.2s;
-                margin-left: 5px;
-            " title="Reset Harian">
-                <i class="fas fa-sync-alt" style="font-size: 10px; color: white;"></i>
-            </div>
+    // KUNCI PERBAIKAN: Memaksa elemen selalu sejajar (1 baris), rata tengah, dan responsif
+    subnav.style.display = 'flex';
+    subnav.style.alignItems = 'center';
+    subnav.style.flexWrap = 'nowrap'; // Tolak elemen turun ke baris baru
+    subnav.style.width = 'fit-content';
+    subnav.style.maxWidth = '100%'; 
+    subnav.style.overflowX = 'auto'; // Bisa di-scroll ke samping jika layar HP sempit
+    // Hilangkan scrollbar visual jika memungkinkan
+    subnav.style.scrollbarWidth = 'none'; 
+
+    let statsBox = document.getElementById('note-stats-box');
+    if (!statsBox) {
+        statsBox = document.createElement('div');
+        statsBox.id = 'note-stats-box';
+        // Styling: Garis vertikal sebagai pemisah di sebelah Privat, teks bold rapi
+        statsBox.style.cssText = `
+            display: flex; 
+            align-items: center; 
+            gap: 12px; 
+            margin-left: 5px; 
+            padding-left: 15px; 
+            border-left: 2px solid #ccd0d5; 
+            color: #65676B; 
+            font-size: 13px; 
+            font-weight: bold; 
+            white-space: nowrap;
         `;
+        subnav.appendChild(statsBox);
+    }
+    
+    // Susunan Keterangan dan Tombol Reset yang sangat rapi
+    statsBox.innerHTML = `
+        <div style="display:flex; align-items:center; gap:5px;" title="Total Catatan">📝 <span>${statsData.total}</span></div>
+        <div style="display:flex; align-items:center; gap:5px;" title="Disimpan Hari Ini">💾 <span>${statsData.saved}</span></div>
+        <div style="display:flex; align-items:center; gap:5px;" title="Dihapus Hari Ini">🗑️ <span>${statsData.deleted}</span></div>
+        
+        <button id="btn-reset-stat" style="
+            width: 26px; 
+            height: 26px; 
+            border: none; 
+            background: #bcc0c4; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            cursor: pointer; 
+            margin-left: 5px;
+            transition: 0.2s;
+        " title="Reset Hari Ini">
+            <i class="fas fa-sync-alt" style="font-size: 11px; color: white;"></i>
+        </button>
+    `;
 
-        const btnReset = statsContainer.querySelector('#btn-reset-stat');
-        btnReset.onclick = (e) => { e.stopPropagation(); resetStatsManual(); };
-        btnReset.onmouseover = () => btnReset.style.background = '#4b4d50';
-        btnReset.onmouseout = () => btnReset.style.background = '#bcc0c4';
-
-    } catch (error) {}
+    // Efek Hover & Klik Tombol Reset
+    const btnReset = statsBox.querySelector('#btn-reset-stat');
+    btnReset.onclick = (e) => { 
+        e.preventDefault(); 
+        e.stopPropagation(); 
+        resetStatsManual(); 
+    };
+    btnReset.onmouseover = () => btnReset.style.background = '#8a8d91';
+    btnReset.onmouseout = () => btnReset.style.background = '#bcc0c4';
 }
 
 // ==========================================
@@ -110,10 +130,10 @@ window.addEventListener('authStateChanged', (e) => {
 
 export function switchNoteTab(tab) {
     currentNoteTab = tab;
-    const tPub = document.getElementById('tab-pub');
-    const tPriv = document.getElementById('tab-priv');
-    if(tPub) tPub.classList.toggle('active', tab === 'public');
-    if(tPriv) tPriv.classList.toggle('active', tab === 'private');
+    const pubBtn = document.getElementById('tab-pub');
+    const privBtn = document.getElementById('tab-priv');
+    if(pubBtn) pubBtn.classList.toggle('active', tab === 'public');
+    if(privBtn) privBtn.classList.toggle('active', tab === 'private');
     
     if (tab === 'private' && !userAdmin) {
         document.getElementById('note-lock-section').classList.remove('hidden');
@@ -146,10 +166,13 @@ function syncNotes() {
     db.ref(path).orderByChild('timestamp').on('value', snap => {
         statsData.total = snap.numChildren();
         updateStatsUI();
+        
         const grid = document.getElementById('notes-grid'); 
         if(!grid) return;
+        
         grid.innerHTML = ''; let items = [];
         snap.forEach(child => { items.push({ key: child.key, ...child.val() }); });
+        
         items.reverse().forEach(d => {
             const card = document.createElement('div'); card.className = 'note-card'; 
             card.onclick = () => {
@@ -190,6 +213,7 @@ export async function saveNote() {
             if (titleStr && /^\d+$/.test(titleStr.toString().trim())) usedNumbers.add(parseInt(titleStr.toString().trim()));
         });
 
+        // Fitur Cek Duplikat
         if (isDuplicate) {
             const confirm = await showModal("Teks Duplikat", "Catatan dengan teks yang sama persis sudah ada. Tetap simpan?", "confirm");
             if (!confirm) return;
@@ -200,7 +224,9 @@ export async function saveNote() {
             t = nextNum.toString();
         }
         executeNoteSave(t, c, path);
-    } catch (e) { showModal("Gagal", "Gagal menghubungi database.", "alert"); }
+    } catch (e) { 
+        showModal("Gagal", "Gagal menghubungi database.", "alert"); 
+    }
 }
 
 function executeNoteSave(title, content, path) {
