@@ -8,7 +8,7 @@ const PROVIDERS = {
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
     "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" },
     "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" },
-    "svco": { name: "Svco", url: "https://svco.svco.workers.dev" } // <-- API SMSVIRTUAL.CO
+    "svco": { name: "Svco", url: "https://svco.svco.workers.dev" }
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
@@ -19,17 +19,20 @@ let smsInitialized = false;
 let isSmsLocked = false;
 let pollingInterval = null;
 let timerInterval = null;
-let isPolling = false; // <-- PENGUNCI TRAFFIC JAM
+let isPolling = false;
 
 let activeOrders = [];
 let orderStates = {};
+
+// CACHE KHUSUS UNTUK SVCO (Agar bisa buka-tutup menu tanpa loading API lagi)
+let cachedSvcoData = null; 
 
 window.addEventListener('appSwitched', (e) => { if(e.detail === 'sms' && !smsInitialized) initSms(); });
 
 function formatPrice(price) {
     if (activeProviderKey === "herosms") return `${price}`;
     if (activeProviderKey === "smsbower") return `$ ${price}`;
-    if (activeProviderKey === "svco") return `${price}`; // Hilangkan logo $
+    if (activeProviderKey === "svco") return `${price}`; 
     return `Rp ${parseInt(price || 0).toLocaleString('id-ID')}`; 
 }
 
@@ -79,7 +82,7 @@ export async function changeSmsProvider() {
     activeProviderKey = document.getElementById('sms-provider').value;
     BASE_URL = PROVIDERS[activeProviderKey].url;
     localStorage.setItem('xurel_provider', activeProviderKey);
-    activeOrders = []; orderStates = {};
+    activeOrders = []; orderStates = {}; cachedSvcoData = null;
     document.getElementById('sms-active-orders').innerHTML = ''; 
     await loadServersList();
     refreshSms();
@@ -134,13 +137,12 @@ export function refreshSms() {
 }
 window.refreshSms = refreshSms;
 
-// <-- TIMEOUT 10 DETIK ADA DI SINI -->
 async function apiCall(endpoint, method = "GET", body = null) {
     const options = { method, headers: { "Content-Type": "application/json", "X-Server-Name": currentServerName } };
     if (body) options.body = JSON.stringify(body);
     try {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 Detik
+        const timeoutId = setTimeout(() => controller.abort(), 10000); 
         options.signal = controller.signal;
 
         const res = await fetch(`${BASE_URL}${endpoint}`, options);
@@ -161,6 +163,62 @@ async function updateSmsBal() {
     if(isSuccess && json.data) document.getElementById('sms-balance').innerText = formatPrice(json.data.balance);
     else document.getElementById('sms-balance').innerText = "Offline";
 }
+
+// ==========================================
+// RENDER UI KHUSUS SVCO (2 LANGKAH)
+// ==========================================
+
+export function renderSvcoPriceList() {
+    const box = document.getElementById('sms-prices');
+    if (!cachedSvcoData) return;
+
+    let { prices } = cachedSvcoData;
+    let htmlList = prices.map(p => {
+        return `<div class="price-item" onclick="renderSvcoOperatorList('${p.price}')">
+            <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
+                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Shopee - 🇮🇩</div>
+            </div>
+            <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+                <div style="min-width: 85px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; white-space: nowrap;">${formatPrice(p.price)}</div>
+                <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">${p.available} stok</div>
+            </div>
+        </div>`;
+    });
+    box.innerHTML = htmlList.join('');
+}
+window.renderSvcoPriceList = renderSvcoPriceList;
+
+export function renderSvcoOperatorList(selectedPrice) {
+    const box = document.getElementById('sms-prices');
+    if (!cachedSvcoData) return;
+
+    let { pid, countryId, operators } = cachedSvcoData;
+    
+    let htmlList = operators.map(op => {
+        let opBadge = getOperatorBadge("svco", op.code, "");
+        return `<div class="price-item" onclick="executeBuySms('${pid}', ${selectedPrice}, 'Shopee', '${op.code}', '${countryId}')">
+            <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
+                <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left:5px;">Shopee - ${op.name.toUpperCase()}</div>
+                ${opBadge}
+            </div>
+            <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
+                <div style="min-width: 85px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; white-space: nowrap;">${formatPrice(selectedPrice)}</div>
+                <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">~ stok</div>
+            </div>
+        </div>`;
+    });
+
+    // Tombol Kembali
+    htmlList.push(`
+        <div onclick="renderSvcoPriceList()" style="margin-top: 15px; padding: 12px; background: #e9ecef; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; color: #495057; border: 1px solid #ced4da; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <i class="fa-solid fa-arrow-left"></i> Kembali ke Daftar Harga
+        </div>
+    `);
+
+    box.innerHTML = htmlList.join('');
+}
+window.renderSvcoOperatorList = renderSvcoOperatorList;
+
 
 async function loadSmsPrices() {
     const json = await apiCall('/get-prices');
@@ -199,13 +257,13 @@ async function loadSmsPrices() {
                         </div>`;
             }).join('');
         } 
-        // 🌟 JIKA SVCO: FORMAT STRUKTUR MURNI SESUAI ORI (TIDAK MERUSAK UI)
+        // 🌟 JIKA SVCO: Simpan data ke Cache, lalu tampilkan list harga (Langkah 1)
         else if (activeProviderKey === "svco") {
-            let processedItems = [];
             let shopeeData = json.data.find(x => x.country === 1 || (x.countryName || "").toLowerCase() === "indonesia") || json.data[0];
             
             if (shopeeData) {
                 let pid = shopeeData.serviceId || "1"; 
+                let countryId = shopeeData.country || 1; 
                 let prices = (shopeeData.customPrice || []).filter(p => parseFloat(p.price) <= 0.06885).sort((a,b) => parseFloat(a.price) - parseFloat(b.price));
                 
                 if (prices.length === 0 && shopeeData.priceUsd && parseFloat(shopeeData.priceUsd) <= 0.06885) {
@@ -214,28 +272,12 @@ async function loadSmsPrices() {
                 
                 let operators = (shopeeData.operators || []).filter(o => o.code && o.code.toLowerCase() !== 'any' && o.name && o.name.toLowerCase() !== 'any');
                 
-                prices.forEach(p => {
-                    operators.forEach(op => {
-                        processedItems.push({
-                            pid: pid, price: p.price, opCode: op.code, opName: op.name.toUpperCase(), available: p.available
-                        });
-                    });
-                });
-            }
+                // Simpan ke Cache Global
+                cachedSvcoData = { pid, countryId, prices, operators };
+                
+                // Tampilkan Langkah 1
+                renderSvcoPriceList();
 
-            if (processedItems.length > 0) {
-                box.innerHTML = processedItems.map(item => {
-                    // Struktur 100% sama dengan Bower/Code (Ori), aman untuk UI
-                    return `<div class="price-item" onclick="executeBuySms('${item.pid}', ${item.price}, 'Shopee', '${item.opCode}', '')">
-                                <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
-                                    <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Shopee - ${item.opName}</div>
-                                </div>
-                                <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
-                                    <div style="min-width: 85px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; white-space: nowrap;">${formatPrice(item.price)}</div>
-                                    <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">${item.available} stok</div>
-                                </div>
-                            </div>`;
-                }).join('');
             } else {
                 box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">Stok Kosong / Tidak Masuk Filter</div>`;
             }
@@ -324,7 +366,15 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         return;
     }
 
-    const payload = (activeProviderKey === "herosms" || activeProviderKey === "smsbower" || activeProviderKey === "otpcepat" || activeProviderKey === "svco") ? { product_id: String(pid), price: price, operator: operator } : { product_id: parseInt(pid) };
+    let payload;
+    if (activeProviderKey === "svco") {
+        payload = { product_id: parseInt(pid), price: Number(price), operator: operator, country: parseInt(rank) || 1 };
+    } else if (activeProviderKey === "herosms" || activeProviderKey === "smsbower" || activeProviderKey === "otpcepat") {
+        payload = { product_id: String(pid), price: price, operator: operator };
+    } else {
+        payload = { product_id: parseInt(pid) };
+    }
+
     const j = await apiCall('/create-order', 'POST', payload);
     const isSuccess = j.success === true || j.status === "success";
 
@@ -358,14 +408,13 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
 }
 window.executeBuySms = executeBuySms;
 
-// <-- LOGIKA SAPU BERSIH YANG AMAN, TIDAK MERUSAK LOOPING UI -->
 async function pollSms() {
     if (isPolling) return;
     isPolling = true;
 
     try {
         let localIds = [];
-        let keysToDelete = []; // Kumpulkan ID yg expired disini dulu
+        let keysToDelete = []; 
         
         for(let i=0; i<localStorage.length; i++) {
             let k = localStorage.key(i);
@@ -373,7 +422,6 @@ async function pollSms() {
                 let id = k.split('_')[2];
                 let expireTime = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${id}`)) || 0;
                 
-                // Jika usia order > 30 menit, tandai untuk dihapus
                 if (expireTime > 0 && Date.now() - expireTime > 1800000) {
                     keysToDelete.push(id);
                 } else {
@@ -382,7 +430,6 @@ async function pollSms() {
             }
         }
 
-        // Hapus data secara aman di luar loop, MENCEGAH BUG UI
         keysToDelete.forEach(id => {
             localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
             localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
@@ -401,7 +448,7 @@ async function pollSms() {
     } catch (e) {
         console.error("Poll Error: ", e);
     } finally {
-        isPolling = false; // Buka kunci antrean
+        isPolling = false; 
     }
 }
 
