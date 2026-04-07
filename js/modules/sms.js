@@ -37,8 +37,7 @@ function formatPrice(price) {
 }
 
 function getOperatorBadge(provider, opCode, rank) {
-    // Logo badge (ST, TL, dll) dinonaktifkan untuk Svco sesuai permintaan
-    if ((provider === "herosms" || provider === "otpcepat") && opCode && opCode !== "any") {
+    if ((provider === "herosms" || provider === "otpcepat" || provider === "svco") && opCode && opCode !== "any") {
         const opMap = { "telkomsel": "TL", "indosat": "ST", "axis": "XS", "three": "TR", "xl": "XL", "smartfren": "SM" };
         let initial = opMap[opCode.toLowerCase()] || opCode.substring(0, 2).toUpperCase();
         return `<span style="font-size:11px; font-family:sans-serif; font-weight:900; color:#fff; margin-left:8px; background:var(--fb-blue); padding:2px 6px; border-radius:4px; box-shadow:0 1px 2px rgba(0,0,0,0.2);">${initial}</span>`;
@@ -195,7 +194,6 @@ export function renderSvcoOperatorList(selectedPrice) {
     let { pid, countryId, operators } = cachedSvcoData;
     
     let htmlList = operators.map(op => {
-        // HANYA NAMA PROVIDER KAPITAL, TANPA KATA "Shopee -" DAN TANPA BADGE LOGO
         return `<div class="price-item" onclick="executeBuySms('${pid}', ${selectedPrice}, 'Shopee', '${op.code}', '${countryId}')">
             <div style="flex: 1; min-width: 0; padding-right: 10px; display:flex; align-items:center;">
                 <div style="font-weight:bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-left:5px;">${op.name.toUpperCase()}</div>
@@ -261,16 +259,21 @@ async function loadSmsPrices() {
             if (shopeeData) {
                 let pid = shopeeData.serviceId || "1"; 
                 let countryId = shopeeData.country || 1; 
-                let prices = (shopeeData.customPrice || []).filter(p => parseFloat(p.price) <= 0.06885).sort((a,b) => parseFloat(a.price) - parseFloat(b.price));
-                
-                if (prices.length === 0 && shopeeData.priceUsd && parseFloat(shopeeData.priceUsd) <= 0.06885) {
-                    prices = [{ price: shopeeData.priceUsd, available: shopeeData.available || '~' }];
-                }
+
+                // MURNI FILTER HARGA DAN PENGURUTAN (DESCENDING)
+                let prices = (shopeeData.customPrice || [])
+                    .filter(p => parseFloat(p.price) <= 0.06885) // <-- Jika ingin kunci 1 harga saja, ubah <= 0.06885 menjadi === 0.05265
+                    .sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); // <-- LOGIKA URUTAN PALING MAHAL DI ATAS
                 
                 let operators = (shopeeData.operators || []).filter(o => o.code && o.code.toLowerCase() !== 'any' && o.name && o.name.toLowerCase() !== 'any');
                 
                 cachedSvcoData = { pid, countryId, prices, operators };
-                renderSvcoPriceList();
+                
+                if (prices.length > 0) {
+                    renderSvcoPriceList();
+                } else {
+                    box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">Fitur Pilih Provider Belum Tersedia Pada Harga Saat Ini</div>`;
+                }
 
             } else {
                 box.innerHTML = `<div style="padding:30px; text-align:center; color:var(--fb-red); font-weight:bold;">Stok Kosong / Tidak Masuk Filter</div>`;
@@ -376,10 +379,16 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         const o = j.data.orders[0];
         const newPhone = o.phone || o.phone_number || o.phoneNumber || 'Mencari Nomor...';
         
+        let initialExpire = Date.now() + (20 * 60000);
+        if (o.expiredAt) {
+            let exp = parseInt(o.expiredAt);
+            initialExpire = exp < 10000000000 ? exp * 1000 : exp;
+        }
+
         localStorage.setItem(`phone_${activeProviderKey}_${o.id}`, newPhone);
         localStorage.setItem(`price_${activeProviderKey}_${o.id}`, price);
         localStorage.setItem(`pid_${activeProviderKey}_${o.id}`, pid);
-        localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, Date.now() + (20 * 60000));
+        localStorage.setItem(`timer_${activeProviderKey}_${o.id}`, initialExpire);
         
         if (operator) localStorage.setItem(`op_${activeProviderKey}_${o.id}`, operator);
         if (rank) localStorage.setItem(`rank_${activeProviderKey}_${o.id}`, rank);
@@ -387,8 +396,7 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         const extraBadge = getOperatorBadge(activeProviderKey, operator, rank);
         const priceDisplay = formatPrice(price) + extraBadge;
         
-        // CANCEL INSTAN: Berlaku untuk Bower, OtpCepat, dan sekarang Svco
-        let cancelState = (["smsbower", "otpcepat", "svco"].includes(activeProviderKey)) ? '' : 'disabled';
+        let cancelState = (["smsbower", "otpcepat"].includes(activeProviderKey)) ? '' : 'disabled';
         let replaceState = 'disabled'; 
 
         const container = document.getElementById('sms-active-orders');
@@ -490,9 +498,12 @@ function renderSmsOrders(orders) {
         if(serverPrice) localStorage.setItem(`price_${activeProviderKey}_${o.id}`, serverPrice);
 
         let expireTime = 0;
-        if (o.expires_at) {
-            expireTime = new Date(o.expires_at).getTime();
-            if (isNaN(expireTime)) expireTime = parseInt(o.expires_at);
+        if (o.expiredAt) { 
+            expireTime = parseInt(o.expiredAt);
+            if (expireTime < 10000000000) expireTime *= 1000;
+        } else if (o.expires_at) {
+            expireTime = parseInt(o.expires_at);
+            if (expireTime < 10000000000) expireTime *= 1000;
         } else if (o.created_at) {
             let created = new Date(o.created_at).getTime();
             if (isNaN(created)) created = parseInt(o.created_at);
@@ -520,7 +531,7 @@ function renderSmsOrders(orders) {
         const isDone = !!o.otp_code;
         let otpDisplay = o.otp_code ? `<span style="color:var(--fb-green); letter-spacing:4px; font-size:26px; font-weight:bold; font-family:monospace;">${o.otp_code}</span>` : `<div class="loader-bars"><span></span><span></span><span></span></div>`;
         
-        const cancelState = (passed2Mins || ["smsbower", "otpcepat", "svco"].includes(activeProviderKey)) && !o.otp_code ? '' : 'disabled';
+        const cancelState = (passed2Mins || ["smsbower", "otpcepat"].includes(activeProviderKey)) && !o.otp_code ? '' : 'disabled';
         const replaceState = (passed2Mins && !["smsbower", "otpcepat", "svco"].includes(activeProviderKey)) && !o.otp_code ? '' : 'disabled';
 
         const cardId = `order-${activeProviderKey}-${o.id}`;
@@ -561,7 +572,7 @@ function renderSmsOrders(orders) {
                 if(btnReplace) btnReplace.disabled = true;
             } else {
                 const btnCancel = existingCard.querySelector('.btn-cancel');
-                if(btnCancel && btnCancel.disabled && (passed2Mins || ["smsbower", "otpcepat", "svco"].includes(activeProviderKey))) btnCancel.disabled = false;
+                if(btnCancel && btnCancel.disabled && (passed2Mins || ["smsbower", "otpcepat"].includes(activeProviderKey))) btnCancel.disabled = false;
                 
                 const btnReplace = existingCard.querySelector('.btn-replace');
                 if(btnReplace && btnReplace.disabled && (passed2Mins && !["smsbower", "otpcepat", "svco"].includes(activeProviderKey))) btnReplace.disabled = false;
@@ -596,7 +607,7 @@ function updateSmsTimers() {
             el.innerText = `${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}`;
             el.style.color = diff < 600 ? "var(--fb-red)" : "var(--fb-blue)"; 
             
-            if (diff <= 1080 || ["smsbower", "otpcepat", "svco"].includes(activeProviderKey)) { 
+            if (diff <= 1080 || ["smsbower", "otpcepat"].includes(activeProviderKey)) { 
                 const existingCard = document.getElementById(`order-${activeProviderKey}-${id}`); 
                 if(existingCard && !existingCard.innerHTML.includes('color:var(--fb-green); letter-spacing:4px;')) { 
                     const btnCancel = existingCard.querySelector('.btn-cancel'); 
@@ -655,7 +666,6 @@ export async function actSms(action, id) {
     const errStr = JSON.stringify(j).toUpperCase();
     let isSuccess = j.success === true || j.status === "success";
     
-    // Bypass false-negative error apabila aslinya order sudah ter-cancel
     if (!isSuccess && (action === 'cancel' || action === 'replace' || action === 'finish')) {
         if (errStr.includes('NOT_FOUND') || errStr.includes('NO_ACTIVATION') || errStr.includes('NOT FOUND') || errStr.includes('ALREADY')) {
             isSuccess = true; 
@@ -697,10 +707,16 @@ export async function actSms(action, id) {
                 const od = n.data.orders[0];
                 const newPhone = od.phone || od.phone_number || od.phoneNumber || 'Mencari Nomor...';
                 
+                let initialExpire = Date.now() + (20 * 60000);
+                if (od.expiredAt) {
+                    let exp = parseInt(od.expiredAt);
+                    initialExpire = exp < 10000000000 ? exp * 1000 : exp;
+                }
+
                 localStorage.setItem(`phone_${activeProviderKey}_${od.id}`, newPhone);
                 localStorage.setItem(`price_${activeProviderKey}_${od.id}`, price);
                 localStorage.setItem(`pid_${activeProviderKey}_${od.id}`, pid);
-                localStorage.setItem(`timer_${activeProviderKey}_${od.id}`, Date.now() + (20 * 60000));
+                localStorage.setItem(`timer_${activeProviderKey}_${od.id}`, initialExpire);
                 localStorage.setItem(`op_${activeProviderKey}_${od.id}`, oldOp);
 
                 const oldCard = document.getElementById(`order-${activeProviderKey}-${id}`);
