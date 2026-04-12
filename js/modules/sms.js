@@ -179,7 +179,7 @@ export function renderSvcoPriceList() {
             </div>
             <div style="display: flex; align-items: center; flex-shrink: 0; gap: 8px;">
                 <div style="min-width: 85px; text-align: right; color:var(--fb-red); font-family:monospace; font-size:14px; font-weight: 900; white-space: nowrap;">${formatPrice(p.price)}</div>
-                <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">${p.available} stok</div>
+                <div style="min-width: 70px; text-align: right; font-size:12px; color:var(--fb-muted); white-space: nowrap;">${(item.operatorStock && item.operatorStock[op.id]) ? item.operatorStock[op.id] : '~'} stok</div>
             </div>
         </div>`;
     });
