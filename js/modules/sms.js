@@ -262,8 +262,8 @@ async function loadSmsPrices() {
 
                 // MURNI FILTER HARGA DAN PENGURUTAN (DESCENDING)
                 let prices = (shopeeData.customPrice || [])
-                    .filter(p => parseFloat(p.price) <= 0.06885) // <-- Jika ingin kunci 1 harga saja, ubah <= 0.06885 menjadi === 0.05265
-                    .sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); // <-- LOGIKA URUTAN PALING MAHAL DI ATAS
+                    .filter(p => parseFloat(p.price) <= 0.06885) 
+                    .sort((a, b) => parseFloat(b.price) - parseFloat(a.price)); 
                 
                 let operators = (shopeeData.operators || []).filter(o => o.code && o.code.toLowerCase() !== 'any' && o.name && o.name.toLowerCase() !== 'any');
                 
@@ -304,7 +304,8 @@ async function loadSmsPrices() {
     }
 }
 
-function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone = false) {
+// === Modifikasi: Penambahan Parameter isRecycled ===
+function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone = false, isRecycled = false) {
     const doneStyle = isDone ? 'style="background:#e6f4ea; color:var(--fb-green); border-color:var(--fb-green);"' : 'disabled';
     
     let borderColor = "#95a5a6"; 
@@ -317,6 +318,9 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
     if ((activeProviderKey === "otpcepat" || activeProviderKey === "svco") && String(oId).length > 6) {
         displayId = "..." + String(oId).slice(-4);
     }
+
+    // === Modifikasi: Inject Red Dot Html ===
+    const recycledDot = isRecycled ? `<span class="recycled-dot" style="color: red; margin-left: 5px; font-size: 10px;" title="Nomor Daur Ulang">🔴</span>` : '';
 
     return `<div class="order-card" id="order-${activeProviderKey}-${oId}" data-created="${Date.now()}" style="border: 2px solid ${borderColor};">
         <div style="display:flex; justify-content:space-between; margin-bottom:15px; border-bottom:1px dashed var(--fb-border); padding-bottom:15px; align-items:center;">
@@ -332,7 +336,7 @@ function createCardHTML(oId, phone, priceDisplay, resendState, cancelState, repl
         </div>
         <div style="font-size:11px; color:var(--fb-muted); margin-bottom:5px; text-transform:uppercase;">Nomor HP:</div>
         <div class="phone-box" onclick="copyPhoneNumber('${phone}', 'copy-icon-${oId}')">
-            <span class="phone-text-span">${phone}</span><i id="copy-icon-${oId}" class="fa-regular fa-copy" style="color: var(--fb-muted);"></i>
+            <span class="phone-text-span">${phone}</span><i id="copy-icon-${oId}" class="fa-regular fa-copy" style="color: var(--fb-muted);"></i>${recycledDot}
         </div>
         <div style="text-align: center; margin: 10px 0 15px 0; padding: 15px 0; background: #fafafa; border-radius: 8px;">
             <div style="font-size:11px; color:var(--fb-muted); font-weight:bold; letter-spacing:1px; margin-bottom:5px;">KODE OTP</div>
@@ -400,7 +404,8 @@ export async function executeBuySms(pid, price, name, operator, rank = "") {
         let replaceState = 'disabled'; 
 
         const container = document.getElementById('sms-active-orders');
-        const cardHTML = createCardHTML(o.id, newPhone, priceDisplay, 'disabled', cancelState, replaceState, `<div class="loader-bars"><span></span><span></span><span></span></div>`);
+        // === Modifikasi: Lempar o.is_recycled ke UI builder ===
+        const cardHTML = createCardHTML(o.id, newPhone, priceDisplay, 'disabled', cancelState, replaceState, `<div class="loader-bars"><span></span><span></span><span></span></div>`, false, o.is_recycled);
         container.insertAdjacentHTML('afterbegin', cardHTML);
 
         pollSms(); updateSmsBal();
@@ -541,8 +546,15 @@ function renderSmsOrders(orders) {
             const phoneBoxSpan = existingCard.querySelector('.phone-text-span');
             if (phoneBoxSpan && phoneBoxSpan.innerText !== phone && phone !== 'Mencari Nomor...') {
                 phoneBoxSpan.innerText = phone;
-                const phoneBox = existingCard.querySelector('.phone-box');
-                if (phoneBox) phoneBox.setAttribute('onclick', `copyPhoneNumber('${phone}', 'copy-icon-${o.id}')`);
+            }
+            
+            const phoneBox = existingCard.querySelector('.phone-box');
+            if (phoneBox) {
+                phoneBox.setAttribute('onclick', `copyPhoneNumber('${phone}', 'copy-icon-${o.id}')`);
+                // === Modifikasi: Pastikan dot merah ada jika di-refresh ===
+                if (o.is_recycled && !existingCard.querySelector('.recycled-dot')) {
+                    phoneBox.insertAdjacentHTML('beforeend', `<span class="recycled-dot" style="color: red; margin-left: 5px; font-size: 10px;" title="Nomor Daur Ulang">🔴</span>`);
+                }
             }
 
             const otpContainer = existingCard.querySelector('.otp-container');
@@ -578,22 +590,12 @@ function renderSmsOrders(orders) {
                 if(btnReplace && btnReplace.disabled && (passed2Mins && !["smsbower", "otpcepat", "svco"].includes(activeProviderKey))) btnReplace.disabled = false;
             }
         } else {
-            const cardHTML = createCardHTML(o.id, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone);
+            // === Modifikasi: Lempar o.is_recycled saat build dari get-active ===
+            const cardHTML = createCardHTML(o.id, phone, priceDisplay, resendState, cancelState, replaceState, otpDisplay, isDone, o.is_recycled);
             container.insertAdjacentHTML('afterbegin', cardHTML);
         }
     });
     updateSmsTimers();
-}
-
-async function autoCancelSilent(id) {
-    await apiCall('/order-action', 'POST', { id, action: 'cancel' });
-    localStorage.removeItem(`phone_${activeProviderKey}_${id}`);
-    localStorage.removeItem(`timer_${activeProviderKey}_${id}`);
-    localStorage.removeItem(`price_${activeProviderKey}_${id}`);
-    localStorage.removeItem(`pid_${activeProviderKey}_${id}`);
-    localStorage.removeItem(`op_${activeProviderKey}_${id}`);
-    localStorage.removeItem(`rank_${activeProviderKey}_${id}`);
-    pollSms(); updateSmsBal();
 }
 
 function updateSmsTimers() {
@@ -622,20 +624,7 @@ function updateSmsTimers() {
         }
     });
 
-    activeOrders.forEach(o => {
-        if (o.otp_code) return; 
-        const end = parseInt(localStorage.getItem(`timer_${activeProviderKey}_${o.id}`));
-        if (end) {
-            const timeLeft = end - now;
-            if (timeLeft <= 600000 && timeLeft > 0) {
-                if (!orderStates[o.id]) orderStates[o.id] = {};
-                if (!orderStates[o.id].autoCanceled) {
-                    orderStates[o.id].autoCanceled = true; 
-                    autoCancelSilent(o.id);
-                }
-            }
-        }
-    });
+    // Modifikasi: Blok kode auto-cancel 10 menit dari frontend telah dihapus.
 }
 
 export async function actSms(action, id) {
