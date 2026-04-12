@@ -8,7 +8,7 @@ const PROVIDERS = {
     "herosms": { name: "Hero", url: "https://hero.aam-zip.workers.dev" },
     "smsbower": { name: "Bower", url: "https://bower.aam-zip.workers.dev" },
     "otpcepat": { name: "Cepat", url: "https://cepat.aam-zip.workers.dev" },
-    "svco": { name: "Svco", url: "https://svco.svco.workers.dev" }
+    "svco": { name: "Svco", url: "https://svco.aam-zip.workers.dev" }
 };
 
 let activeProviderKey = localStorage.getItem('xurel_provider') || "smscode";
