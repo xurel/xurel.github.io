@@ -42,7 +42,7 @@ export function openShopeeModal(key = null) {
         statusSelect.style.display = "none";
         
         // Kolom input dibuat sangat panjang & kursor di pojok kiri atas
-        urlInput.style.height = "350px"; 
+        urlInput.style.height = "300px"; 
         urlInput.placeholder = ""; // Hilangkan semua keterangan
     } else {
         modalTitle.innerText = key ? "Edit Link Shopee" : "Tambah Link Shopee";
