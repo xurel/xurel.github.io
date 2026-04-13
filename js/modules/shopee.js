@@ -29,25 +29,40 @@ export function openShopeeModal(key = null) {
     const statusSelect = document.getElementById('shopee-status');
     const modalTitle = document.getElementById('modal-shopee-title');
 
-    // Reset tampilan default (tampilkan semua)
+    // Reset tampilan default untuk link reguler
     priceInput.style.display = "block";
     statusSelect.style.display = "block";
-    urlInput.style.height = "auto"; 
+    urlInput.style.height = "50px"; // Tinggi standar untuk link biasa
+    urlInput.style.textAlign = "left"; 
 
     if (key === 'ID_RANDOM_LOCKED') {
         modalTitle.innerText = "Edit Daftar Link Acak";
-        // 1 & 3. Hilangkan Harga dan Label
         priceInput.style.display = "none";
         statusSelect.style.display = "none";
         
-        // Memperlebar/Mempertinggi kolom link agar lebih lega
-        urlInput.style.height = "150px"; 
-        urlInput.placeholder = "Masukkan daftar link Shopee\nGunakan ENTER untuk memisahkan setiap link...";
+        // Perbaikan khusus Kartu Acak:
+        urlInput.style.height = "250px"; // 1. Kolom diperpanjang
+        urlInput.style.textAlign = "left"; // 2. Kursor rata kiri
+        urlInput.placeholder = ""; // 3. Hilangkan keterangan sama sekali
+        
     } else {
         modalTitle.innerText = key ? "Edit Link Shopee" : "Tambah Link Shopee";
         urlInput.placeholder = "URL Link";
     }
 
+    if (key && shopeeDataCache[key]) {
+        document.getElementById('shopee-title').value = shopeeDataCache[key].title || "";
+        document.getElementById('shopee-url').value = shopeeDataCache[key].url || "";
+        document.getElementById('shopee-price').value = shopeeDataCache[key].price || "";
+        document.getElementById('shopee-status').value = shopeeDataCache[key].status || "";
+    } else {
+        document.getElementById('shopee-title').value = "";
+        document.getElementById('shopee-url').value = "";
+        document.getElementById('shopee-price').value = "";
+        document.getElementById('shopee-status').value = "";
+    }
+    document.getElementById('modal-shopee-form').classList.add('active');
+}
     if (key && shopeeDataCache[key]) {
         document.getElementById('shopee-title').value = shopeeDataCache[key].title || "";
         document.getElementById('shopee-url').value = shopeeDataCache[key].url || "";
