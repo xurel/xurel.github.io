@@ -23,14 +23,23 @@ export function formatRupiah(el) {
 
 export function openShopeeModal(key = null) {
     document.getElementById('shopee-edit-key').value = key || "";
+    const urlInput = document.getElementById('shopee-url');
+
+    // Penyesuaian UI Modal khusus untuk Kartu Acak
+    if (key === 'ID_RANDOM_LOCKED') {
+        document.getElementById('modal-shopee-title').innerText = "Edit Kartu Acak (Terkunci)";
+        urlInput.placeholder = "Masukkan banyak link, pisahkan dengan koma (,)";
+    } else {
+        document.getElementById('modal-shopee-title').innerText = key ? "Edit Link Shopee" : "Tambah Link Shopee";
+        urlInput.placeholder = "Masukkan URL"; 
+    }
+
     if (key && shopeeDataCache[key]) {
-        document.getElementById('modal-shopee-title').innerText = "Edit Link Shopee";
         document.getElementById('shopee-title').value = shopeeDataCache[key].title || "";
         document.getElementById('shopee-url').value = shopeeDataCache[key].url || "";
         document.getElementById('shopee-price').value = shopeeDataCache[key].price || "";
         document.getElementById('shopee-status').value = shopeeDataCache[key].status || "";
     } else {
-        document.getElementById('modal-shopee-title').innerText = "Tambah Link Shopee";
         document.getElementById('shopee-title').value = "";
         document.getElementById('shopee-url').value = "";
         document.getElementById('shopee-price').value = "";
@@ -70,9 +79,51 @@ function renderShopee() {
     const colors = ['#e41e3f', '#1877f2', '#8e44ad', '#f39c12', '#2ecc71', '#1abc9c', '#d35400'];
     const isAdmin = !!userAdmin;
 
-    // KUNCI PERBAIKAN URUTAN: Mengurutkan menggunakan ID Unik Firebase
-    // localeCompare akan memastikan urutan abjad/angka selalu menaruh data ter-BARU di paling ATAS
-    let orderedShopee = Object.keys(shopeeDataCache).map(k => ({ key: k, ...shopeeDataCache[k] }));
+    // --- 1. RENDER KARTU ACAK (TERKUNCI) DI PALING ATAS ---
+    let randomCardData = shopeeDataCache['ID_RANDOM_LOCKED'];
+    
+    if (randomCardData || isAdmin) {
+        const wrapRandom = document.createElement('div');
+        wrapRandom.className = 'shopee-item-wrapper'; 
+        // Style berbeda: warna gradien gelap dengan garis tepi emas agar menonjol
+        wrapRandom.style.background = 'linear-gradient(135deg, #1e272e, #2f3640)'; 
+        wrapRandom.style.border = '1px solid #f1c40f'; 
+
+        if (randomCardData) {
+            let st = randomCardData.status ? `<span class="badge-status">${randomCardData.status}</span>` : ''; 
+            let pr = randomCardData.price ? `<span class="badge-status">${randomCardData.price}</span>` : '';
+            
+            // Admin hanya bisa edit, tidak bisa hapus secara tidak sengaja
+            let adminBtns = isAdmin ? `
+            <div class="admin-controls">
+                <button class="btn-ctrl" onclick="openShopeeModal('ID_RANDOM_LOCKED')" title="Edit Kartu Acak"><i class="fa-solid fa-pen" style="font-size:12px;"></i></button>
+            </div>` : '';
+
+            wrapRandom.innerHTML = `
+                <div class="shopee-copy-btn" onclick="actionRandomLink(event, 'ID_RANDOM_LOCKED', 'copy', this)" title="Salin Link Acak"><i class="fa-solid fa-copy"></i></div>
+                <div class="shopee-item" onclick="actionRandomLink(event, 'ID_RANDOM_LOCKED', 'open', this)" style="cursor:pointer;">
+                    <span><i class="fa-solid fa-lock" style="color:#f1c40f; margin-right:8px;"></i> ${randomCardData.title}</span>
+                    <div class="shopee-details">${st}${pr}</div>
+                </div>
+                ${adminBtns}
+            `;
+        } else {
+            // Jika belum ada datanya, munculkan tombol setup hanya untuk Admin
+            wrapRandom.innerHTML = `
+                <div class="shopee-item" style="justify-content:center; cursor:pointer;" onclick="openShopeeModal('ID_RANDOM_LOCKED')">
+                    <span style="color:#f1c40f;"><i class="fa-solid fa-plus" style="margin-right:8px;"></i> Setup Kartu Acak (Admin)</span>
+                </div>
+            `;
+        }
+        container.appendChild(wrapRandom);
+    }
+
+    // --- 2. RENDER DAFTAR LINK REGULER ---
+    // Memfilter ID_RANDOM_LOCKED agar tidak muncul dua kali
+    let orderedShopee = Object.keys(shopeeDataCache)
+        .filter(k => k !== 'ID_RANDOM_LOCKED')
+        .map(k => ({ key: k, ...shopeeDataCache[k] }));
+        
     orderedShopee.sort((a, b) => b.key.localeCompare(a.key));
 
     orderedShopee.forEach((data, idx) => {
@@ -109,4 +160,32 @@ export function copyShopeeLink(event, url, btnElement) {
         const originalIcon = btnElement.innerHTML; btnElement.innerHTML = '<i class="fa-solid fa-check" style="color:var(--fb-green);"></i>';
         setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
     }).catch(() => showModal("Gagal", "Perangkat tidak mendukung fitur salin otomatis.", "alert"));
+}
+
+// Fungsi Baru: Menangani klik & salin acak dari daftar koma
+export function actionRandomLink(event, key, action, btnElement) {
+    event.preventDefault(); event.stopPropagation();
+    
+    let cardData = shopeeDataCache[key];
+    if(!cardData || !cardData.url) {
+        return showModal("Kosong", "Belum ada link yang disetting di kartu ini.", "alert");
+    }
+
+    // Memecah teks url berdasarkan KOMA atau ENTER, lalu memilih secara acak
+    let links = cardData.url.split(/[,\n]+/).map(l => l.trim()).filter(l => l.length > 0);
+    if(links.length === 0) {
+        return showModal("Peringatan", "Format link tidak valid. Pastikan dipisah dengan koma.", "alert");
+    }
+
+    let randomLink = links[Math.floor(Math.random() * links.length)];
+
+    if (action === 'copy') {
+        navigator.clipboard.writeText(randomLink).then(() => {
+            const originalIcon = btnElement.innerHTML; 
+            btnElement.innerHTML = '<i class="fa-solid fa-check" style="color:var(--fb-green);"></i>';
+            setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
+        }).catch(() => showModal("Gagal", "Perangkat tidak mendukung fitur salin otomatis.", "alert"));
+    } else if (action === 'open') {
+        window.open(randomLink, '_blank');
+    }
 }
