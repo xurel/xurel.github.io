@@ -166,7 +166,6 @@ export function copyShopeeLink(event, url, btnElement) {
         setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
     });
 }
-
 export function actionRandomLink(event, key, action = 'open', btnElement = null) {
     event.preventDefault(); event.stopPropagation();
     
@@ -189,11 +188,7 @@ export function actionRandomLink(event, key, action = 'open', btnElement = null)
             setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
         });
     } else {
-        const tempLink = document.createElement('a');
-        tempLink.href = randomLink;
-        tempLink.target = '_blank';
-        document.body.appendChild(tempLink);
-        tempLink.click();
-        document.body.removeChild(tempLink);
+        // Menggunakan window.open sesuai permintaan Anda
+        window.open(randomLink, '_blank');
     }
 }
