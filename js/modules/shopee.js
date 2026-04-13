@@ -29,40 +29,25 @@ export function openShopeeModal(key = null) {
     const statusSelect = document.getElementById('shopee-status');
     const modalTitle = document.getElementById('modal-shopee-title');
 
-    // Reset tampilan default untuk link reguler
+    // Reset tampilan default
     priceInput.style.display = "block";
     statusSelect.style.display = "block";
-    urlInput.style.height = "50px"; // Tinggi standar untuk link biasa
+    urlInput.style.height = "60px"; 
     urlInput.style.textAlign = "left"; 
+    urlInput.placeholder = "URL Link";
 
     if (key === 'ID_RANDOM_LOCKED') {
         modalTitle.innerText = "Edit Daftar Link Acak";
         priceInput.style.display = "none";
         statusSelect.style.display = "none";
         
-        // Perbaikan khusus Kartu Acak:
-        urlInput.style.height = "250px"; // 1. Kolom diperpanjang
-        urlInput.style.textAlign = "left"; // 2. Kursor rata kiri
-        urlInput.placeholder = ""; // 3. Hilangkan keterangan sama sekali
-        
+        // Kolom input dibuat sangat panjang & kursor di pojok kiri atas
+        urlInput.style.height = "350px"; 
+        urlInput.placeholder = ""; // Hilangkan semua keterangan
     } else {
         modalTitle.innerText = key ? "Edit Link Shopee" : "Tambah Link Shopee";
-        urlInput.placeholder = "URL Link";
     }
 
-    if (key && shopeeDataCache[key]) {
-        document.getElementById('shopee-title').value = shopeeDataCache[key].title || "";
-        document.getElementById('shopee-url').value = shopeeDataCache[key].url || "";
-        document.getElementById('shopee-price').value = shopeeDataCache[key].price || "";
-        document.getElementById('shopee-status').value = shopeeDataCache[key].status || "";
-    } else {
-        document.getElementById('shopee-title').value = "";
-        document.getElementById('shopee-url').value = "";
-        document.getElementById('shopee-price').value = "";
-        document.getElementById('shopee-status').value = "";
-    }
-    document.getElementById('modal-shopee-form').classList.add('active');
-}
     if (key && shopeeDataCache[key]) {
         document.getElementById('shopee-title').value = shopeeDataCache[key].title || "";
         document.getElementById('shopee-url').value = shopeeDataCache[key].url || "";
@@ -108,7 +93,7 @@ function renderShopee() {
     const colors = ['#e41e3f', '#1877f2', '#8e44ad', '#f39c12', '#2ecc71', '#1abc9c', '#d35400'];
     const isAdmin = !!userAdmin;
 
-    // --- 1. KARTU MENU ACAK (LOCKED) ---
+    // --- 1. KARTU MENU ACAK (LOCKED) DI PALING ATAS ---
     let randomCardData = shopeeDataCache['ID_RANDOM_LOCKED'];
     
     if (randomCardData || isAdmin) {
@@ -118,15 +103,16 @@ function renderShopee() {
         wrapRandom.style.border = '1px solid #f1c40f'; 
 
         if (randomCardData) {
-            // Admin button
             let adminBtns = isAdmin ? `
             <div class="admin-controls">
                 <button class="btn-ctrl" onclick="openShopeeModal('ID_RANDOM_LOCKED')" title="Edit"><i class="fa-solid fa-pen"></i></button>
             </div>` : '';
 
-            // 2. Tombol copy dihilangkan dari innerHTML ini
             wrapRandom.innerHTML = `
-                <div class="shopee-item" onclick="actionRandomLink(event, 'ID_RANDOM_LOCKED')" style="cursor:pointer; width:100%;">
+                <div class="shopee-copy-btn" onclick="actionRandomLink(event, 'ID_RANDOM_LOCKED', 'copy', this)" title="Salin 1 Link Acak">
+                    <i class="fa-solid fa-copy"></i>
+                </div>
+                <div class="shopee-item" onclick="actionRandomLink(event, 'ID_RANDOM_LOCKED', 'open')" style="cursor:pointer;">
                     <span><i class="fa-solid fa-lock" style="color:#f1c40f; margin-right:8px;"></i> ${randomCardData.title}</span>
                 </div>
                 ${adminBtns}
@@ -181,27 +167,33 @@ export function copyShopeeLink(event, url, btnElement) {
     });
 }
 
-// Fungsi Random: Menggunakan Enter sebagai pemisah
-export function actionRandomLink(event, key) {
+export function actionRandomLink(event, key, action = 'open', btnElement = null) {
     event.preventDefault(); event.stopPropagation();
     
     let cardData = shopeeDataCache[key];
     if(!cardData || !cardData.url) return;
 
-    // 4. Pemisah menggunakan baris baru (Enter)
+    // Pemisah menggunakan ENTER
     let links = cardData.url.split('\n').map(l => l.trim()).filter(l => l.startsWith('http'));
 
     if(links.length === 0) {
-        return showModal("Peringatan", "Belum ada link valid (diawali http) yang dimasukkan.", "alert");
+        return showModal("Peringatan", "Belum ada link valid yang dimasukkan.", "alert");
     }
 
     let randomLink = links[Math.floor(Math.random() * links.length)];
 
-    // Membuka link secara otomatis
-    const tempLink = document.createElement('a');
-    tempLink.href = randomLink;
-    tempLink.target = '_blank';
-    document.body.appendChild(tempLink);
-    tempLink.click();
-    document.body.removeChild(tempLink);
+    if (action === 'copy' && btnElement) {
+        navigator.clipboard.writeText(randomLink).then(() => {
+            const originalIcon = btnElement.innerHTML; 
+            btnElement.innerHTML = '<i class="fa-solid fa-check" style="color:var(--fb-green);"></i>';
+            setTimeout(() => { btnElement.innerHTML = originalIcon; }, 1500);
+        });
+    } else {
+        const tempLink = document.createElement('a');
+        tempLink.href = randomLink;
+        tempLink.target = '_blank';
+        document.body.appendChild(tempLink);
+        tempLink.click();
+        document.body.removeChild(tempLink);
+    }
 }
