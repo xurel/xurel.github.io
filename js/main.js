@@ -1,7 +1,8 @@
 import { showModal, closeModal, toggleMainMenu, switchApp } from './modules/ui.js';
 import { masukSistem, keluarSistem, auth } from './modules/firebase.js';
 import { generateName } from './modules/randomName.js';
-import { formatRupiah, openShopeeModal, saveShopee, deleteShopee, copyShopeeLink } from './modules/shopee.js';
+// DI BAWAH INI SAYA TAMBAHKAN 'actionRandomLink'
+import { formatRupiah, openShopeeModal, saveShopee, deleteShopee, copyShopeeLink, actionRandomLink } from './modules/shopee.js';
 import { switchNoteTab, openNoteModal, saveNote, editNote, deleteNote, copyNoteContent } from './modules/notes.js';
 import { toggleSmsLock, changeSmsServer, buySms, copyPhoneNumber, actSms } from './modules/sms.js';
 
@@ -27,6 +28,7 @@ window.openShopeeModal = openShopeeModal;
 window.saveShopee = saveShopee;
 window.deleteShopee = deleteShopee;
 window.copyShopeeLink = copyShopeeLink;
+window.actionRandomLink = actionRandomLink; // <--- INI TAMBAHANNYA AGAR KARTU ACAK BERFUNGSI
 
 window.switchNoteTab = switchNoteTab;
 window.openNoteModal = openNoteModal;
@@ -111,4 +113,4 @@ function handleSwipe() {
             window.switchApp(appsOrder[currentIndex - 1], prevBtn);
         }
     }
-            }
+}
