@@ -4,7 +4,21 @@ import { generateName } from './modules/randomName.js';
 // DI BAWAH INI SAYA TAMBAHKAN 'actionRandomLink'
 import { formatRupiah, openShopeeModal, saveShopee, deleteShopee, copyShopeeLink, actionRandomLink } from './modules/shopee.js';
 import { switchNoteTab, openNoteModal, saveNote, editNote, deleteNote, copyNoteContent } from './modules/notes.js';
-import { toggleSmsLock, changeSmsServer, buySms, copyPhoneNumber, actSms } from './modules/sms.js';
+
+// === IMPORT SMS.JS YANG BARU ===
+import { 
+    changeSmsProvider, 
+    changeSmsServer, 
+    refreshSms, 
+    toggleFavoritePrice, 
+    renderPriceGroups, 
+    openProviderMenu, 
+    executeBuySms, 
+    localHideSmsCard, 
+    copyPhoneNumber, 
+    copyOtpCode, 
+    actSms 
+} from './modules/sms.js';
 
 // Catatan: Jika Anda sudah mengubah nama filenya menjadi bow.js, 
 // silakan ubah kata 'fiturBaru.js' di bawah ini menjadi 'bow.js'
@@ -37,10 +51,17 @@ window.editNote = editNote;
 window.deleteNote = deleteNote;
 window.copyNoteContent = copyNoteContent;
 
-window.toggleSmsLock = toggleSmsLock;
+// === DAFTAR FUNGSI SMS.JS KE WINDOW ===
+window.changeSmsProvider = changeSmsProvider;
 window.changeSmsServer = changeSmsServer;
-window.buySms = buySms;
+window.refreshSms = refreshSms;
+window.toggleFavoritePrice = toggleFavoritePrice;
+window.renderPriceGroups = renderPriceGroups;
+window.openProviderMenu = openProviderMenu;
+window.executeBuySms = executeBuySms;
+window.localHideSmsCard = localHideSmsCard;
 window.copyPhoneNumber = copyPhoneNumber;
+window.copyOtpCode = copyOtpCode;
 window.actSms = actSms;
 
 window.jalankanFiturBaru = jalankanFiturBaru;
